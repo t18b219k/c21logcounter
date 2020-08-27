@@ -340,7 +340,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
         location.reload(true);
         }
           setTimeout(reload, 30000);
-          </script><meta charset=\"UTF-8\"> <title>RTLC_rs</title></head><body><table border=\"1\" width=\"200\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">".to_string();
+          </script><meta charset=\"UTF-8\"> <title>C21Counter_rs</title></head><body><table border=\"1\" width=\"200\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">".to_string();
                         let table_row = "<tr><th>名前</th><th>個数</th></tr>";
                         droptable.push_str(table_row);
                         let mut vector = hashmap_to_vec(&set);
@@ -509,7 +509,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                                     let update = std::fs::metadata(&path).unwrap();
                                     let update = update.modified().unwrap();
 
-                                    println!("{},{:#?}", path, update);
+                                    //     println!("{},{:#?}", path, update);
                                     paths.push((path, update));
                                 }
                                 Err(error) => { eprintln!("{}", error) }
@@ -519,38 +519,55 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                         let last = paths.pop().unwrap();//最新
                         let texts = read_from_file(last.0);
                         let from = search_floor(&texts, 0);
-                        let mut lds = Vec::new();
-                        lds.push(engine_item_get(&texts, from.unwrap()));
-                        lds.push(engine_get_part(&texts, from.unwrap()));
-                        lds.push(engine_item_use(&texts, from.unwrap()));
-                        lds.push(engine_kill_self(&texts, from.unwrap()));
-                        let mut table = "<!DOCTYPE html><html><head><script>
+                        match from {
+                            None => {
+                                Vec::from("<!DOCTYPE html><html><head><script>
         function reload() {
         location.reload(true);
-
+            }
+          setTimeout(reload, 3000);
+          </script><meta charset=\"UTF-8\">\
+<link href=\"./style.css\" rel=\"stylesheet\" type=\"text/css\">
+          </head><body>
+          <h1>フロア内カウント</h1>
+          <h1>まだダンジョンなどに入っていません</h1>
+          </body>")
+                            },
+                            Some(from) => {
+                                let mut lds = Vec::new();
+                                lds.push(engine_item_get(&texts, from));
+                                lds.push(engine_get_part(&texts, from));
+                                lds.push(engine_item_use(&texts, from));
+                                lds.push(engine_kill_self(&texts, from));
+                                let mut table = "<!DOCTYPE html><html><head><script>
+        function reload() {
+        location.reload(true);
+            }
           setTimeout(reload, 3000);
           </script><meta charset=\"UTF-8\">\
 <link href=\"./style.css\" rel=\"stylesheet\" type=\"text/css\">
           </head><body><h1>フロア内カウント</h1>".to_string();
-                        let mut captions = vec!["アイテム取得", "パーツ取得", "アイテム使用", "キル"];
-                        captions.reverse();
-                        for data in lds {
-                            let table_row = "<div class=\"hbox\"><table border=\"1\" width=\"200\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">";
-                            let caption = format!("<caption>{}</caption>", captions.pop().unwrap());
-                            table.push_str(table_row);
-                            table.push_str(&caption);
-                            table.push_str("<tr><th>名前</th><th>個数</th></tr>");
-                            let mut vector = hashmap_to_vec(&data);
-                            sort(&mut vector, SortTarget::NAME, true);
-                            for row in vector {
-                                let (key, val) = row;
-                                let row_string = format!("<tr><td>{}</td><td>{}</td></tr>", key, val);
-                                table.push_str(&row_string);
-                            }
-                            table.push_str("</table></div>");
+                                let mut captions = vec!["アイテム取得", "パーツ取得", "アイテム使用", "キル"];
+                                captions.reverse();
+                                for data in lds {
+                                    let table_row = "<div class=\"hbox\"><table border=\"1\" width=\"200\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">";
+                                    let caption = format!("<caption>{}</caption>", captions.pop().unwrap());
+                                    table.push_str(table_row);
+                                    table.push_str(&caption);
+                                    table.push_str("<tr><th>名前</th><th>個数</th></tr>");
+                                    let mut vector = hashmap_to_vec(&data);
+                                    sort(&mut vector, SortTarget::NAME, true);
+                                    for row in vector {
+                                        let (key, val) = row;
+                                        let row_string = format!("<tr><td>{}</td><td>{}</td></tr>", key, val);
+                                        table.push_str(&row_string);
+                                    }
+                                    table.push_str("</table></div>");
+                                }
+                                table.push_str("</body></html>");
+                                table.into_bytes()
+                            },
                         }
-                        table.push_str("</body></html>");
-                        table.into_bytes()
                     }
                     "./config" => {
                         Vec::from("<html><title>Now Constructing</title><body><h1>Now Constructing</h1></body></html>")

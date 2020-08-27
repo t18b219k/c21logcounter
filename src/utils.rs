@@ -80,9 +80,11 @@ pub mod utils {
     }
 
     pub fn hashmap_to_vec(map: &HashMap<String, usize>) -> Vec<(String, usize)> {
-        let mut vector = vec![];
-        for (key, val) in map.iter() {
-            vector.push((key.to_string(), *val));
+        let mut vector = Vec::new();
+        if !map.is_empty() {
+            for (key, val) in map.iter() {
+                vector.push((key.to_string(), *val));
+            }
         }
         vector
     }

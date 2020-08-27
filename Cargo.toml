@@ -1,5 +1,5 @@
 [package]
-name = "RTLC_rs"
+name = "C21Counter_rs"
 version = "0.1.0"
 authors = ["goldp"]
 edition = "2018"

@@ -1,13 +1,14 @@
 pub mod utils {
     use std::collections::HashMap;
     use std::fs;
+    use std::io::Read;
     use std::path::Path;
 
     use encoding::all::WINDOWS_31J;
     use encoding::DecoderTrap;
     use encoding::Encoding;
 
-    use crate::engines::engines::{engine_get_info, engine_get_text, engine_get_text2};
+    use crate::engines::engines::{engine_get_info, engine_get_text, engine_get_text2, engine_get_text3};
 
     pub enum SortTarget {
         NAME,
@@ -63,6 +64,14 @@ pub mod utils {
         texts
     }
 
+    pub fn read_from_file3<P: AsRef<Path>>(path: P) -> Vec<String> {
+        let content = fs::read(path).unwrap();
+        let content = content.as_slice();
+        let content = WINDOWS_31J.decode(content, DecoderTrap::Ignore).unwrap();
+        let texts = engine_get_text3(&content);
+        texts
+    }
+
     pub fn connect_hashmap(map0: HashMap<String, usize>, map1: HashMap<String, usize>) -> HashMap<String, usize> {
         let mut new = map0.clone();
         for (item, qty) in map1.iter() {
@@ -87,5 +96,22 @@ pub mod utils {
             }
         }
         vector
+    }
+
+    pub fn load_tsv<P: AsRef<Path>>(path: P) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        let mut file = fs::File::open(path).unwrap();
+        let mut string = String::new();
+        file.read_to_string(&mut string);
+        let iter = string.split("\n");
+        for line in iter {
+            let mut iter = line.split("\t");
+            let key = iter.next().unwrap().to_string();
+            // let key= key.replace("\\t","\t");
+            let value = iter.next().unwrap().to_string();
+            println!("key :{} value:{}", key, value);
+            map.insert(key, value);
+        }
+        map
     }
 }

@@ -155,6 +155,27 @@ pub mod engines {
         table
     }
 
+    pub fn engine_tsv_match(texts: &[String], dictionary: &HashMap<String, String>, from: usize) -> HashMap<String, usize> {
+        let mut table = HashMap::new();
+        let last = texts.len();
+        for i in from..last {
+            let mut text = texts[i].clone();
+            text = text.replace("\r", "");
+            text = text.replace("\t", "\\t");
+            text.remove(0);
+            text.remove(0);
+            let name = dictionary.get(&text);
+            match name {
+                None => {},
+                Some(name) => {
+                    let qty = table.get(name).unwrap_or(&0);
+                    table.insert(name.to_string(), qty + 1);
+                },
+            }
+        }
+        table
+    }
+
     pub fn engine_item_get(texts: &[String], from: usize) -> HashMap<String, usize> {
         lazy_static! {
         static ref re:Regex = Regex::new(r"(?P<name>\[.+]) を (?P<N>\d+)個 取得した！").unwrap();
@@ -163,6 +184,7 @@ pub mod engines {
         let last = texts.len();
         for i in from..last {
             let text = &texts[i];
+            println!("{}", text);
             match re.captures(&text) {
                 Some(caps) => {
                     let name = caps.name("name").unwrap().as_str();
@@ -273,6 +295,17 @@ pub mod engines {
         let mut texts = vec![];
         lazy_static! {
         static ref re:Regex = Regex::new(r"\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2}	\[INFO]	(?P<text>.+)").unwrap();
+        }
+        for caps in re.captures_iter(text) {
+            texts.push("\t".to_string() + caps.name("text").unwrap().as_str());
+        }
+        texts
+    }
+
+    pub fn engine_get_text3(text: &str) -> Vec<String> {
+        let mut texts = vec![];
+        lazy_static! {
+        static ref re:Regex = Regex::new(r"\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2}	(?P<text>.+)").unwrap();
         }
         for caps in re.captures_iter(text) {
             texts.push("\t".to_string() + caps.name("text").unwrap().as_str());

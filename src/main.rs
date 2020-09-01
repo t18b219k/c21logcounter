@@ -19,12 +19,13 @@ use utils::utils::connect_hashmap;
 use utils::utils::hashmap_to_vec;
 use utils::utils::sort;
 
-use crate::engines::engines::{engine_gacha, engine_get_part, engine_item_get, search_dungeon_clear, search_floor};
+use crate::engines::engines::{engine_gacha, engine_get_part, engine_item_get, engine_tsv_match, search_dungeon_clear, search_floor};
 use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
-use crate::utils::utils::{read_from_file, read_from_file2, SortTarget};
+use crate::utils::utils::{load_tsv, read_from_file, read_from_file2, read_from_file3, SortTarget};
 
 mod engines;
 mod utils;
+mod config;
 
 #[derive(Clone)]
 struct Statics {
@@ -113,9 +114,10 @@ impl Statics {
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use
-    //0     1     2   3    4    5          6           7           8             9
-    let mut statics = vec![Statics::new(); 10];
+    //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle
+    //0     1     2   3    4    5          6           7           8             9       10     11       12     13
+    let mut statics = vec![Statics::new(); 14];
+
 
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
@@ -179,6 +181,15 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
     let chat_dir_path = Path::new("C:\\Cyberstep\\C21\\chat\\");
     let file = File::open(&request.uri);
     let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
+    lazy_static! {
+    static ref dictionaries:Vec<HashMap<String,String>>={
+    let shuttle_tsv=load_tsv("./shuttle.tsv");
+    let dungeon_tsv=load_tsv("./dungeon.tsv");
+    let mission_tsv=load_tsv("./mission.tsv");
+    let burst_tsv=load_tsv("./burst.tsv");
+    vec![burst_tsv,dungeon_tsv,mission_tsv,shuttle_tsv]
+    };
+    }
     let mut payload = {
         match file {
             //ファイルが存在
@@ -194,7 +205,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
 
                 match uri.as_str() {
                     //RTLCの機能はCGIとして実装
-                    "./items" | "./parts" | "./kills" | "./labo" | "./use" | "./gacha" => {
+                    "./items" | "./parts" | "./kills" | "./labo" | "./use" | "./gacha" | "./dungeon_clear" | "./burst" | "./mission" | "./shuttle" => {
                         let mut paths = Vec::new();//パスのリスト
                         let c21_chat_file_list = fs::read_dir(chat_dir_path).unwrap();
                         for dir_entry in c21_chat_file_list {
@@ -223,6 +234,12 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                             "./labo" => { statics[3].query_cache(&paths) }
                             "./use" => { statics[4].query_cache(&paths) }
                             "./gacha" => { statics[5].query_cache(&paths) }
+
+                            "./burst" => { statics[10].query_cache(&paths) }
+                            "./dungeon_clear" => { statics[11].query_cache(&paths) }
+                            "./mission" => { statics[12].query_cache(&paths) }
+                            "./shuttle" => { statics[13].query_cache(&paths) }
+
                             _ => { statics[0].query_cache(&paths) }
                         };
 
@@ -233,6 +250,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                         let tx = Arc::new(Mutex::new(tx));
                         let ntl = need_to_load.clone();
                         println!("{:#?}", ntl);
+
                         for path in ntl {
                             use std::thread;
                             let tx = tx.clone();
@@ -269,6 +287,26 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                                         let data = engine_gacha(&texts, 0);
                                         tx.lock().unwrap().send(data);
                                     }
+                                    "./burst" => {
+                                        let texts = read_from_file3(path);
+                                        let data = engine_tsv_match(&texts, &dictionaries[0], 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    "./dungeon_clear" => {
+                                        let texts = read_from_file3(path);
+                                        let data = engine_tsv_match(&texts, &dictionaries[1], 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    "./mission" => {
+                                        let texts = read_from_file3(path);
+                                        let data = engine_tsv_match(&texts, &dictionaries[2], 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    "./shuttle" => {
+                                        let texts = read_from_file3(path);
+                                        let data = engine_tsv_match(&texts, &dictionaries[3], 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
                                     _ => {}
                                 };
                             });
@@ -298,6 +336,18 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                                     "./gacha" => {
                                         statics[5].update_statics(rcv);
                                     }
+                                    "./burst" => {
+                                        statics[10].update_statics(rcv);
+                                    }
+                                    "./dungeon_clear" => {
+                                        statics[11].update_statics(rcv);
+                                    }
+                                    "./mission" => {
+                                        statics[12].update_statics(rcv);
+                                    }
+                                    "./shuttle" => {
+                                        statics[13].update_statics(rcv);
+                                    }
                                     _ => {}
                                 }
                             }
@@ -326,6 +376,22 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                             "./gacha" => {
                                 let texts = read_from_file(last.0);
                                 (statics[5].get_statics(), engine_gacha(&texts, 0))
+                            }
+                            "./burst" => {
+                                let texts = read_from_file3(last.0);
+                                (statics[10].get_statics(), engine_tsv_match(&texts, &dictionaries[0], 0))
+                            }
+                            "./dungeon_clear" => {
+                                let texts = read_from_file3(last.0);
+                                (statics[11].get_statics(), engine_tsv_match(&texts, &dictionaries[1], 0))
+                            }
+                            "./mission" => {
+                                let texts = read_from_file3(last.0);
+                                (statics[12].get_statics(), engine_tsv_match(&texts, &dictionaries[2], 0))
+                            }
+                            "./shuttle" => {
+                                let texts = read_from_file3(last.0);
+                                (statics[13].get_statics(), engine_tsv_match(&texts, &dictionaries[3], 0))
                             }
                             _ => {
                                 let texts = read_from_file(last.0);

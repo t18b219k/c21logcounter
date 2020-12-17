@@ -470,7 +470,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                             let path = Path::new(&last.0);
                             let stem = path.file_stem().unwrap();
                             let stem = stem.to_str().unwrap();
-                            let file_name = format!("./{}@{}_{}.html", stem, LAST_FLOOR_GATE, LAST_CLEAR);
+                            let file_name = format!("./dungeon_statics/{}@{}_{}.html", stem, LAST_FLOOR_GATE, LAST_CLEAR);
                             println!("write to  {}", file_name);
                             let mut file = std::fs::File::create(file_name).unwrap();
                             // generate  html

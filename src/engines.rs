@@ -166,11 +166,11 @@ pub mod engines {
             text.remove(0);
             let name = dictionary.get(&text);
             match name {
-                None => {},
+                None => {}
                 Some(name) => {
                     let qty = table.get(name).unwrap_or(&0);
                     table.insert(name.to_string(), qty + 1);
-                },
+                }
             }
         }
         table

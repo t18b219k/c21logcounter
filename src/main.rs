@@ -11,6 +11,7 @@ use std::net::TcpListener;
 use std::path::Path;
 
 use regex::Regex;
+use sysinfo::{ProcessExt, System, SystemExt};
 
 use engines::engines::engine_item_use;
 use engines::engines::engine_kill_self;
@@ -25,7 +26,6 @@ use crate::utils::utils::{load_tsv, read_from_file, read_from_file2, read_from_f
 
 mod engines;
 mod utils;
-mod config;
 
 #[derive(Clone)]
 struct Statics {
@@ -117,7 +117,7 @@ fn main() {
     //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle
     //0     1     2   3    4    5          6           7           8             9       10     11       12     13
     let mut statics = vec![Statics::new(); 14];
-
+    let chat_dir=determine_chat_folder();
 
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
@@ -132,7 +132,7 @@ fn main() {
         match request {
             None => {}
             Some(request) => {
-                let response = make_response(request, &mut statics);
+                let response = make_response(request, &mut statics,&chat_dir);
                 stream.write(&response);
             }
         }
@@ -175,10 +175,73 @@ fn request_parse(text: &str) -> Option<HttpRequest> {
         None => None,
     }
 }
-//Httpレスポンスを作成
 
-fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
-    let chat_dir_path = Path::new("C:\\Cyberstep\\C21\\chat\\");
+fn determine_chat_folder() -> String {
+    let s = System::new_all();
+    //windows linux
+    //cmdからc21.exeを検索する
+    //if system is linux get $WINEPREFIX
+    //if $WINEPREFIX is empty use ~/.wine/ as wine prefix
+    //if process cmd is  c21_steam.exe launcher is steam version
+    // if not run on windows ( linux or macos )
+
+
+    //detect working directory
+    //set working dir
+    let mut executable = String::new();
+    for (pid, process) in s.get_processes() {
+        println!("{:#?}", process.cmd());
+        for arg in process.cmd() {
+            println!("current judging is {}", arg);
+            if arg.contains("c21.exe") | arg.contains("c21_steam.exe") {
+                executable = arg.clone();
+                println!("contains");
+            }
+        }
+    }
+    //executable C:\\CyberStep\\C21\\c21.exe
+
+    println!("executable is {}", executable);
+
+    //generate wine prefix
+    #[cfg(not(target_os = "windows"))]
+        let drive_c = {
+        let wine_prefix = option_env!("WINEPREFIX");
+        let wine_prefix = wine_prefix.unwrap_or("~/.wine/");
+        let wine_prefix = wine_prefix.replace("~", option_env!("HOME").unwrap());
+        let mut drive_c = wine_prefix.to_string();
+        drive_c.push_str("drive_c/");
+        drive_c
+    };
+
+    //if official binary and runs on wine
+
+    let executable = {
+        #[cfg(not(target_os = "windows"))]
+            {
+                executable.replace("C:\\", &drive_c)
+            }
+        #[cfg(target_os = "windows")]
+            {
+                executable
+            }
+    };
+    println!("executable is {}", executable);
+    let mut working_dir = executable.replace("c21.exe", "").replace("c21_steam.exe", "");
+    #[cfg(not(target_os = "windows"))]
+        working_dir.push_str("chat/");
+    #[cfg(not(target_os = "windows"))]
+        let working_dir = working_dir.replace("\\", "/");
+    #[cfg(target_os = "windows")]
+        let working_dir = working_dir.replace("/", "\\");
+    println!("working dir is {}", working_dir);
+    working_dir
+}
+
+//Httpレスポンスを作成
+fn make_response(request: HttpRequest, statics: &mut [Statics],chat_dir:&str) -> Vec<u8> {
+    //   let chat_dir_path = Path::new("C:\\Cyberstep\\C21\\chat\\");
+
     let file = File::open(&request.uri);
     let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
     lazy_static! {
@@ -189,7 +252,9 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
     let burst_tsv=load_tsv("./burst.tsv");
     vec![burst_tsv,dungeon_tsv,mission_tsv,shuttle_tsv]
     };
+
     }
+    let chat_dir_path=Path::new(&chat_dir);
     let mut payload = {
         match file {
             //ファイルが存在
@@ -470,6 +535,10 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                             let path = Path::new(&last.0);
                             let stem = path.file_stem().unwrap();
                             let stem = stem.to_str().unwrap();
+
+                            if !Path::new("./dungeon_statics").exists() {
+                                std::fs::create_dir("./dungeon_statics");
+                            }
                             let file_name = format!("./dungeon_statics/{}@{}_{}.html", stem, LAST_FLOOR_GATE, LAST_CLEAR);
                             println!("write to  {}", file_name);
                             let mut file = std::fs::File::create(file_name).unwrap();
@@ -598,7 +667,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
           <h1>フロア内カウント</h1>
           <h1>まだダンジョンなどに入っていません</h1>
           </body>")
-                            },
+                            }
                             Some(from) => {
                                 let mut lds = Vec::new();
                                 lds.push(engine_item_get(&texts, from));
@@ -632,7 +701,7 @@ fn make_response(request: HttpRequest, statics: &mut [Statics]) -> Vec<u8> {
                                 }
                                 table.push_str("</body></html>");
                                 table.into_bytes()
-                            },
+                            }
                         }
                     }
                     "./config" => {

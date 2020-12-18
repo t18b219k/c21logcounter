@@ -233,7 +233,9 @@ fn determine_chat_folder() -> String {
     #[cfg(not(target_os = "windows"))]
         let working_dir = working_dir.replace("\\", "/");
     #[cfg(target_os = "windows")]
-        let working_dir = working_dir.replace("/", "\\");
+        let mut working_dir = working_dir.replace("/", "\\");
+    #[cfg(target_os="windows")]
+        working_dir.push_str("chat\\");
     println!("working dir is {}", working_dir);
     working_dir
 }

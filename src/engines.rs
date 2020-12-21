@@ -3,7 +3,9 @@ pub mod engines {
 
     use regex::{Captures, Regex};
 
-    pub fn engine_kill_self(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub type InnerStatics = HashMap<String, isize>;
+
+    pub fn engine_kill_self(texts: &[String], from: usize) -> InnerStatics {
         lazy_static! {
         static ref re: Regex=Regex::new(r"\t(?P<name>[^が]+?)を撃破した").unwrap();
         }
@@ -30,7 +32,7 @@ pub mod engines {
         table
     }
 
-    pub fn engine_gacha(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub fn engine_gacha(texts: &[String], from: usize) -> InnerStatics {
         lazy_static! {
         static ref re:Regex = Regex::new(r"\[(?P<name>.+)] が当たりました！").unwrap();
         }
@@ -56,7 +58,7 @@ pub mod engines {
         table
     }
 
-    pub fn engine_item_use(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
         //[リペアパック2000] を使用した！　
         lazy_static! {
         static ref re:Regex = Regex::new(r"(?P<name>\[.+]) を使用した！").unwrap();
@@ -82,8 +84,66 @@ pub mod engines {
         }
         table
     }
+    //this is not normal format
+    //so i use dedicated format
+    // (reward,sells)
+    pub fn engine_reward_dungeon(texts: &[String], from: usize) ->HashMap<String,(isize,isize)> {
+        lazy_static! {
+        //	報酬－ ENパック2000 x 1
+        static ref RE:Regex= Regex::new(r"報酬－ (?P<name>.+) x (?P<N>\d+)").unwrap();
+        static ref RE2:Regex=Regex::new(r"報酬－ (?P<name>.+) x (?P<N>\d+)").unwrap();
+        static ref RESELL:Regex=Regex::new(r"報酬売却－ (?P<name>.+) x (?P<N>\d+)").unwrap();
+        }
+        let mut table:HashMap<String,(isize,isize)> = HashMap::new();
+        let last = texts.len();
+        for i in from..last {
+            let text = &texts[i];
+            match RE2.captures(&text) {
+                Some(caps) => {
+                    let name = caps.name("name").unwrap().as_str();
+                    let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
+                    match table.get(name) {
+                        Some(v) => {
+                            //update()
+                            let cell=(v.0+num,v.1);
+                            table.insert(name.to_string(), cell);
+                        }
+                        None => {
+                            let cell=(num,0);
+                            table.insert(name.to_string(), cell);
+                        }
+                    };
+                }
+                None => {
+                    println!("{}",&text)
+                }
+            }
+            match RESELL.captures(&text) {
+                Some(caps) => {
+                    let name = caps.name("name").unwrap().as_str();
+                    let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
+                    let cell=table.get(name);
+                    match cell{
+                        Some(v) => {
+                            //update()
+                            let cell=(v.0,v.1+num);
+                            table.insert(name.to_string(), cell);
+                        }
+                        None => {
+                            let cell=(0,num);
+                            table.insert(name.to_string(), cell);
+                        }
+                    };
+                }
+                None => {
+                    println!("{}",&text)
+                }
+            }
+        }
+        table
+    }
 
-    pub fn engine_rare(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub fn engine_rare(texts: &[String], from: usize) -> InnerStatics {
         lazy_static! {
         static ref re:Regex = Regex::new(r"誰かが \[(?P<name>.+)] をガチャセンターで当てました！").unwrap();
        }
@@ -109,7 +169,7 @@ pub mod engines {
         table
     }
 
-    pub fn engine_labo(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub fn engine_labo(texts: &[String], from: usize) -> InnerStatics {
         //1個も合成に成功しないなら
         // 合成に失敗しました
         //1個でも合成に成功したら
@@ -133,7 +193,7 @@ pub mod engines {
                         }
                         Some(caps) => {//新しいバージョンのログ
                             let name = caps.name("name").unwrap().as_str();
-                            let num = caps.name("N").unwrap().as_str().parse::<usize>().unwrap();
+                            let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
                             (name, num)
                         }
                     };
@@ -155,7 +215,7 @@ pub mod engines {
         table
     }
 
-    pub fn engine_tsv_match(texts: &[String], dictionary: &HashMap<String, String>, from: usize) -> HashMap<String, usize> {
+    pub fn engine_tsv_match(texts: &[String], dictionary: &HashMap<String, String>, from: usize) -> InnerStatics {
         let mut table = HashMap::new();
         let last = texts.len();
         for i in from..last {
@@ -176,7 +236,7 @@ pub mod engines {
         table
     }
 
-    pub fn engine_item_get(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub fn engine_item_get(texts: &[String], from: usize) -> InnerStatics {
         lazy_static! {
         static ref re:Regex = Regex::new(r"(?P<name>\[.+]) を (?P<N>\d+)個 取得した！").unwrap();
        }
@@ -188,7 +248,7 @@ pub mod engines {
             match re.captures(&text) {
                 Some(caps) => {
                     let name = caps.name("name").unwrap().as_str();
-                    let num = caps.name("N").unwrap().as_str().parse::<usize>().unwrap();
+                    let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
                     match table.get(name) {
                         Some(v) => {
                             table.insert(name.to_string(), v + num);
@@ -204,7 +264,7 @@ pub mod engines {
         table
     }
 
-    pub fn engine_get_part(texts: &[String], from: usize) -> HashMap<String, usize> {
+    pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
         lazy_static! {
         static ref re:Regex = Regex::new(r"(?P<name>\[.+]) を取得した！").unwrap();
         }

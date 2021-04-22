@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
-use serde::{Serialize,Deserialize};
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Setting {
     launcher_path: String,
     chat_path: String,
@@ -10,7 +10,6 @@ struct Setting {
 ///Write default setting
 #[test]
 fn write_default_setting() {
-
     let setting_unix = Setting {
         launcher_path: ".wine/drive_c/CyberStep/c21/c21.exe".to_string(),
         chat_path: ".wine/drive_c/CyberStep/c21/chat".to_string(),
@@ -23,11 +22,11 @@ fn write_default_setting() {
         base_path: "C:\\CyberStep\\C21\\".to_string(),
     };
     let mut file_windows = File::create("Setting_windows.toml").unwrap();
-    let mut file_unix=File::create("Setting_unix.toml").unwrap();
-    let toml_unix= toml::to_string(&setting_unix).unwrap();
-    let toml_windows=toml::to_string(&setting_windows).unwrap();
-    write!(file_unix,"{}",toml_unix);
-    write!(file_windows,"{}",toml_windows);
+    let mut file_unix = File::create("Setting_unix.toml").unwrap();
+    let toml_unix = toml::to_string(&setting_unix).unwrap();
+    let toml_windows = toml::to_string(&setting_windows).unwrap();
+    write!(file_unix, "{}", toml_unix);
+    write!(file_windows, "{}", toml_windows);
     file_windows.flush();
     file_unix.flush();
 }

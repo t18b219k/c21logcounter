@@ -1,4 +1,4 @@
-use std::process::{Command, Child};
+use std::process::{Child, Command};
 use std::sync::mpsc::Sender;
 
 //manage c21 process
@@ -14,16 +14,20 @@ fn update() -> Option<Child> {
 fn construct_launcher() -> Sender<ProcessRequest> {
     let (tx, rx) = std::sync::mpsc::channel();
     let thread_id = std::thread::spawn(move || {
-        let mut child:Option<Child> = None;
+        let mut child: Option<Child> = None;
         for request in rx.iter() {
             match request {
-                ProcessRequest::Kill =>{
-                    if let Some(ref mut child)=child{
+                ProcessRequest::Kill => {
+                    if let Some(ref mut child) = child {
                         child.kill().ok();
                     }
-                },
+                }
                 ProcessRequest::Launch => {
-                    child=Command::new("wine").arg("programs/cosmic.exe").arg("-launch").spawn().ok();
+                    child = Command::new("wine")
+                        .arg("programs/cosmic.exe")
+                        .arg("-launch")
+                        .spawn()
+                        .ok();
                 }
             }
         }

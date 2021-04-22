@@ -11,6 +11,6 @@ regex = "*"
 toml = "*"
 lazy_static = "*"
 encoding = "*"
-serde = "*"
-serde_derive = "*"
+serde = {version="*",features=["derive"]}
+
 sysinfo = "*"

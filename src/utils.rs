@@ -8,98 +8,51 @@ pub mod utils {
     use encoding::DecoderTrap;
     use encoding::Encoding;
 
-    use crate::engines::engines::{engine_get_info, engine_get_text, engine_get_text2, engine_get_text3, InnerStatics};
+    use crate::engines::engines::{
+        engine_get_info, engine_get_text, engine_get_text2, engine_get_text3, InnerStatics,
+    };
 
     pub enum SortTarget {
         NAME,
         QTY,
     }
-    pub enum RewardSort{
+    pub enum RewardSort {
         Sell,
-        Reward
+        Reward,
     }
     pub fn sort(vec: &mut Vec<(String, isize)>, target: SortTarget, invert: bool) {
         match target {
-            SortTarget::NAME => {
-                match invert {
-                    true => {
-                        vec.sort_by(|a, b| {
-                            a.0.cmp(&b.0).reverse()
-                        })
-                    }
-                    false => {
-                        vec.sort_by(|a, b| {
-                            a.0.cmp(&b.0)
-                        })
-                    }
-                }
-            }
-            SortTarget::QTY => {
-                match invert {
-                    true => {
-                        vec.sort_by(|a, b| {
-                            a.1.cmp(&b.1).reverse()
-                        })
-                    }
-                    false => {
-                        vec.sort_by(|a, b| {
-                            a.1.cmp(&b.1)
-                        })
-                    }
-                }
-            }
+            SortTarget::NAME => match invert {
+                true => vec.sort_by(|a, b| a.0.cmp(&b.0).reverse()),
+                false => vec.sort_by(|a, b| a.0.cmp(&b.0)),
+            },
+            SortTarget::QTY => match invert {
+                true => vec.sort_by(|a, b| a.1.cmp(&b.1).reverse()),
+                false => vec.sort_by(|a, b| a.1.cmp(&b.1)),
+            },
         }
     }
-    pub fn sort_drs(vec: &mut Vec<(String, (isize,isize))>,rs:RewardSort, target: SortTarget, invert: bool){
+    pub fn sort_drs(
+        vec: &mut Vec<(String, (isize, isize))>,
+        rs: RewardSort,
+        target: SortTarget,
+        invert: bool,
+    ) {
         match target {
-            SortTarget::NAME => {
-
-                match invert {
-                    true => {
-                        match rs{
-                            RewardSort::Sell => {
-                                vec.sort_by(|a, b| {
-                                    (a.0).cmp((&b.0)).reverse()
-                                })
-                            }
-                            RewardSort::Reward => {
-                                vec.sort_by(|a, b| {
-                                    (a.0).cmp((&b.0)).reverse()
-                                })
-                            }
-                        }
-
-                    }
-                    false => {
-                        match rs{
-                            RewardSort::Sell => {
-                                vec.sort_by(|a, b| {
-                                    (a.0).cmp((&b.0))
-                                })
-                            }
-                            RewardSort::Reward => {
-                                vec.sort_by(|a, b| {
-                                    (a.0).cmp((&b.0))
-                                })
-                            }
-                        }
-                    }
-                }
-            }
-            SortTarget::QTY => {
-                match invert {
-                    true => {
-                        vec.sort_by(|a, b| {
-                            a.1.cmp(&b.1).reverse()
-                        })
-                    }
-                    false => {
-                        vec.sort_by(|a, b| {
-                            a.1.cmp(&b.1)
-                        })
-                    }
-                }
-            }
+            SortTarget::NAME => match invert {
+                true => match rs {
+                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp((&b.0)).reverse()),
+                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp((&b.0)).reverse()),
+                },
+                false => match rs {
+                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp((&b.0))),
+                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp((&b.0))),
+                },
+            },
+            SortTarget::QTY => match invert {
+                true => vec.sort_by(|a, b| a.1.cmp(&b.1).reverse()),
+                false => vec.sort_by(|a, b| a.1.cmp(&b.1)),
+            },
         }
     }
     pub fn read_from_file<P: AsRef<Path>>(path: P) -> Vec<String> {
@@ -142,13 +95,15 @@ pub mod utils {
         new
     }
 
-    pub fn connect_hashmap_drs(map0:HashMap<String,(isize,isize)> , map1: HashMap<String,(isize,isize)>) -> HashMap<String,(isize,isize)> {
+    pub fn connect_hashmap_drs(
+        map0: HashMap<String, (isize, isize)>,
+        map1: HashMap<String, (isize, isize)>,
+    ) -> HashMap<String, (isize, isize)> {
         let mut new = map0.clone();
         for (item, qty) in map1.iter() {
             match new.get(item) {
                 Some(old) => {
-
-                    let qty=(old.0+qty.0,old.1+qty.1);
+                    let qty = (old.0 + qty.0, old.1 + qty.1);
                     new.insert(item.to_string(), qty);
                 }
                 None => {
@@ -168,7 +123,9 @@ pub mod utils {
         }
         vector
     }
-    pub fn hashmap_to_vec_drs(map: &HashMap<String,(isize,isize)>) -> Vec<(String, (isize,isize))> {
+    pub fn hashmap_to_vec_drs(
+        map: &HashMap<String, (isize, isize)>,
+    ) -> Vec<(String, (isize, isize))> {
         let mut vector = Vec::new();
         if !map.is_empty() {
             for (key, val) in map.iter() {

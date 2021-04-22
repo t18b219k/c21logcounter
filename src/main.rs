@@ -3,6 +3,7 @@
 extern crate lazy_static;
 extern crate regex;
 
+extern crate toml;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
@@ -20,13 +21,22 @@ use utils::utils::connect_hashmap;
 use utils::utils::hashmap_to_vec;
 use utils::utils::sort;
 
-use crate::engines::engines::{engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match, InnerStatics, search_dungeon_clear, search_floor};
+use crate::engines::engines::{
+    engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match,
+    search_dungeon_clear, search_floor, InnerStatics,
+};
+use crate::utils::utils::{
+    connect_hashmap_drs, hashmap_to_vec_drs, load_tsv, read_from_file, read_from_file2,
+    read_from_file3, sort_drs, RewardSort, SortTarget,
+};
 use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
-use crate::utils::utils::{load_tsv, read_from_file, read_from_file2, read_from_file3, SortTarget, connect_hashmap_drs, hashmap_to_vec_drs, sort_drs, RewardSort};
 use std::collections::hash_map::RandomState;
 
 mod engines;
+mod process_manager;
+mod setting;
 mod utils;
+mod mesa_inject;
 
 #[derive(Clone)]
 struct Statics {
@@ -53,9 +63,9 @@ struct HttpRequest {
     uri: String,
     version: f32,
 }
-struct DungeonRewardStatics{
+struct DungeonRewardStatics {
     cache_list: HashSet<String>,
-    statics: HashMap<String,(isize,isize)>,
+    statics: HashMap<String, (isize, isize)>,
     last: usize,
 }
 
@@ -88,16 +98,16 @@ impl DungeonRewardStatics {
         self.statics.clone()
     }
     //統計データを更新
-    fn update_statics(&mut self, data: HashMap<String,(isize,isize)>) {
+    fn update_statics(&mut self, data: HashMap<String, (isize, isize)>) {
         for entry in data {
             let (name, qty) = entry;
-            let (reward,sells)=qty;
+            let (reward, sells) = qty;
             match self.statics.get(&name) {
                 None => {
                     self.statics.insert(name, qty);
                 }
                 Some(old) => {
-                    self.statics.insert(name,(old.0+qty.0,old.1+qty.1));
+                    self.statics.insert(name, (old.0 + qty.0, old.1 + qty.1));
                 }
             }
             /*
@@ -115,7 +125,7 @@ impl DungeonRewardStatics {
              */
         }
     }
-    fn rewrite_statics(&mut self, data: HashMap<String,(isize,isize)>) {
+    fn rewrite_statics(&mut self, data: HashMap<String, (isize, isize)>) {
         self.statics = data;
     }
     fn set_last(&mut self, last: usize) {
@@ -203,7 +213,7 @@ fn main() {
     //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle dungeon_reward
     //0     1     2   3    4    5          6           7           8             9       10     11       12     13         14
     let mut statics = vec![Statics::new(); 14];
-    let mut dungeon_reward_statics=DungeonRewardStatics::new();
+    let mut dungeon_reward_statics = DungeonRewardStatics::new();
     let chat_dir = determine_chat_folder();
 
     for stream in listener.incoming() {
@@ -219,13 +229,17 @@ fn main() {
         match request {
             None => {}
             Some(request) => {
-                let response = make_response(request, &mut statics, &chat_dir, &mut dungeon_reward_statics);
+                let response = make_response(
+                    request,
+                    &mut statics,
+                    &chat_dir,
+                    &mut dungeon_reward_statics,
+                );
                 stream.write(&response);
             }
         }
     }
 }
-
 
 fn request_parse(text: &str) -> Option<HttpRequest> {
     let re = Regex::new(r"(.+?) (.+?) HTTP/(.+?)\r\n").unwrap();
@@ -272,7 +286,6 @@ fn determine_chat_folder() -> String {
     //if process cmd is  c21_steam.exe launcher is steam version
     // if not run on windows ( linux or macos )
 
-
     //detect working directory
     //set working dir
     let mut executable = String::new();
@@ -292,7 +305,7 @@ fn determine_chat_folder() -> String {
 
     //generate wine prefix
     #[cfg(not(target_os = "windows"))]
-        let drive_c = {
+    let drive_c = {
         let wine_prefix = option_env!("WINEPREFIX");
         let wine_prefix = wine_prefix.unwrap_or("~/.wine/");
         let wine_prefix = wine_prefix.replace("~", option_env!("HOME").unwrap());
@@ -305,43 +318,49 @@ fn determine_chat_folder() -> String {
 
     let executable = {
         #[cfg(not(target_os = "windows"))]
-            {
-                executable.replace("C:\\", &drive_c)
-            }
+        {
+            executable.replace("C:\\", &drive_c)
+        }
         #[cfg(target_os = "windows")]
-            {
-                executable
-            }
+        {
+            executable
+        }
     };
     println!("executable is {}", executable);
-    let mut working_dir = executable.replace("c21.exe", "").replace("c21_steam.exe", "");
+    let mut working_dir = executable
+        .replace("c21.exe", "")
+        .replace("c21_steam.exe", "");
     #[cfg(not(target_os = "windows"))]
-        working_dir.push_str("chat/");
+    working_dir.push_str("chat/");
     #[cfg(not(target_os = "windows"))]
-        let working_dir = working_dir.replace("\\", "/");
+    let working_dir = working_dir.replace("\\", "/");
     #[cfg(target_os = "windows")]
-        let mut working_dir = working_dir.replace("/", "\\");
+    let mut working_dir = working_dir.replace("/", "\\");
     #[cfg(target_os = "windows")]
-        working_dir.push_str("chat\\");
+    working_dir.push_str("chat\\");
     println!("working dir is {}", working_dir);
     working_dir
 }
 
 //Httpレスポンスを作成
-fn make_response(request: HttpRequest, statics: &mut [Statics], chat_dir: &str,drs:&mut DungeonRewardStatics) -> Vec<u8> {
+fn make_response(
+    request: HttpRequest,
+    statics: &mut [Statics],
+    chat_dir: &str,
+    drs: &mut DungeonRewardStatics,
+) -> Vec<u8> {
     //   let chat_dir_path = Path::new("C:\\Cyberstep\\C21\\chat\\");
 
     let file = File::open(&request.uri);
     let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
     lazy_static! {
-    static ref dictionaries:Vec<HashMap<String,String>>={
-    let shuttle_tsv=load_tsv("./shuttle.tsv");
-    let dungeon_tsv=load_tsv("./dungeon.tsv");
-    let mission_tsv=load_tsv("./mission.tsv");
-    let burst_tsv=load_tsv("./burst.tsv");
-    vec![burst_tsv,dungeon_tsv,mission_tsv,shuttle_tsv]
-    };
-
+        static ref dictionaries: Vec<HashMap<String, String>> = {
+            let shuttle_tsv = load_tsv("./shuttle.tsv");
+            let dungeon_tsv = load_tsv("./dungeon.tsv");
+            let mission_tsv = load_tsv("./mission.tsv");
+            let burst_tsv = load_tsv("./burst.tsv");
+            vec![burst_tsv, dungeon_tsv, mission_tsv, shuttle_tsv]
+        };
     }
     let chat_dir_path = Path::new(&chat_dir);
     let mut payload = {
@@ -880,4 +899,3 @@ fn make_response(request: HttpRequest, statics: &mut [Statics], chat_dir: &str,d
     page.append(&mut payload);
     page
 }
-

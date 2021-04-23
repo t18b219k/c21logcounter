@@ -101,7 +101,7 @@ impl DungeonRewardStatics {
     fn update_statics(&mut self, data: HashMap<String, (isize, isize)>) {
         for entry in data {
             let (name, qty) = entry;
-            let (reward, sells) = qty;
+            let (_reward, _sells) = qty;
             match self.statics.get(&name) {
                 None => {
                     self.statics.insert(name, qty);

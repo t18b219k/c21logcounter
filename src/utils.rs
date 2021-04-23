@@ -41,12 +41,12 @@ pub mod utils {
         match target {
             SortTarget::NAME => match invert {
                 true => match rs {
-                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp((&b.0)).reverse()),
-                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp((&b.0)).reverse()),
+                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp(&b.0).reverse()),
+                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp(&b.0).reverse()),
                 },
                 false => match rs {
-                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp((&b.0))),
-                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp((&b.0))),
+                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp(&b.0)),
+                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp(&b.0)),
                 },
             },
             SortTarget::QTY => match invert {

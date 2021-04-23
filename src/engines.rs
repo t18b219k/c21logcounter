@@ -324,7 +324,7 @@ pub mod engines {
     //フロアゲートの起動を探す.(first)
     pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize> {
         let last = texts.len();
-        let mut floor = 0;
+        let floor = 0;
         lazy_static! {
             static ref re: Regex = Regex::new(r"(?P<name>.+?)がフロアゲートを起動した！").unwrap();
         }
@@ -385,7 +385,7 @@ pub mod engines {
 
     pub fn engine_get_text2(text: &str) -> Vec<String> {
         let mut texts = Vec::new();
-        let mut longtext;
+        let longtext;
         //\r\nを削除する代わりに<ls>をログの区切りとする.
         lazy_static! {
             static ref re: Regex =

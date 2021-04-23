@@ -13,7 +13,7 @@ fn update() -> Option<Child> {
 //create launcher
 fn construct_launcher() -> Sender<ProcessRequest> {
     let (tx, rx) = std::sync::mpsc::channel();
-    let thread_id = std::thread::spawn(move || {
+    let _thread_id = std::thread::spawn(move || {
         let mut child: Option<Child> = None;
         for request in rx.iter() {
             match request {

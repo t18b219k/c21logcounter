@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Setting {
     launcher_path: String,
@@ -35,7 +34,7 @@ fn write_default_setting() {
 fn get_path_from_launcher() {
     //generate wine prefix
     #[cfg(not(target_os = "windows"))]
-    let drive_c = {
+    let _drive_c = {
         let wine_prefix = option_env!("WINEPREFIX");
         let wine_prefix = wine_prefix.unwrap_or("~/.wine/");
         let wine_prefix = wine_prefix.replace("~", option_env!("HOME").unwrap());

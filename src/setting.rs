@@ -1,45 +1,73 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Setting {
-    launcher_path: String,
-    chat_path: String,
-    base_path: String,
-}
-///Write default setting
-#[test]
-fn write_default_setting() {
-    let setting_unix = Setting {
-        launcher_path: ".wine/drive_c/CyberStep/c21/c21.exe".to_string(),
-        chat_path: ".wine/drive_c/CyberStep/c21/chat".to_string(),
-        base_path: ".wine/drive_c/CyberStep/c21/".to_string(),
-    };
+use std::path::MAIN_SEPARATOR;
+use sysinfo::{ProcessExt, System, SystemExt};
 
-    let setting_windows = Setting {
-        launcher_path: "C:\\CyberStep\\C21\\c21.exe".to_string(),
-        chat_path: "C:\\CyberStep\\C21\\chat".to_string(),
-        base_path: "C:\\CyberStep\\C21\\".to_string(),
-    };
-    let mut file_windows = File::create("Setting_windows.toml").unwrap();
-    let mut file_unix = File::create("Setting_unix.toml").unwrap();
-    let toml_unix = toml::to_string(&setting_unix).unwrap();
-    let toml_windows = toml::to_string(&setting_windows).unwrap();
-    write!(file_unix, "{}", toml_unix);
-    write!(file_windows, "{}", toml_windows);
-    file_windows.flush();
-    file_unix.flush();
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Setting {
+    pub launcher_name: String,
+    pub base_path: String,
 }
 
-//
-fn get_path_from_launcher() {
+pub enum GetPathError {
+    ProcessNotFound,
+}
+//プロセステーブルを検索してパスを取ってくる.
+fn search_process() -> Option<String> {
+    let s = System::new_all();
+    for (_pid, process) in s.get_processes() {
+        for arg in process.cmd() {
+            if arg.contains("c21.exe") | arg.contains("c21_steam.exe") {
+                return Some(arg.clone());
+            }
+        }
+    }
+    None
+}
+pub fn get_path_from_launcher() -> Result<Setting, GetPathError> {
+    let executable = search_process();
+    let executable = if let Some(exec) = executable {
+        exec
+    } else {
+        return Err(GetPathError::ProcessNotFound);
+    };
     //generate wine prefix
     #[cfg(not(target_os = "windows"))]
-    let _drive_c = {
-        let wine_prefix = option_env!("WINEPREFIX");
-        let wine_prefix = wine_prefix.unwrap_or("~/.wine/");
-        let wine_prefix = wine_prefix.replace("~", option_env!("HOME").unwrap());
+    let drive_c = {
+        let wine_prefix = std::env::var("WINEPREFIX").ok();
+        let wine_prefix = wine_prefix.unwrap_or("~/.wine/".to_string());
+        let wine_prefix = wine_prefix.replace("~", &std::env::var("HOME").unwrap());
         let mut drive_c = wine_prefix.to_string();
         drive_c.push_str("drive_c/");
         drive_c
     };
+    let executable = {
+        #[cfg(not(target_os = "windows"))]
+        {
+            executable.replace("C:\\", &drive_c)
+        }
+        #[cfg(target_os = "windows")]
+        {
+            executable
+        }
+    };
+    let executable = executable.replace('\\', "/");
+    let file_name_chunks: Vec<&str> = executable.split('/').collect();
+    let len = file_name_chunks.len();
+    let mut base_path: String = file_name_chunks.iter().as_slice()[0..len - 1]
+        .join(MAIN_SEPARATOR.to_string().as_str())
+        .to_string();
+    base_path.push(MAIN_SEPARATOR);
+    let launcher_name = file_name_chunks.iter().last().unwrap();
+
+    let setting = Setting {
+        launcher_name: launcher_name.to_string(),
+        base_path,
+    };
+    println!("{:#?}", setting);
+    Ok(setting)
+}
+#[test]
+fn test_get_path() {
+    get_path_from_launcher();
 }

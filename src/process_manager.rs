@@ -1,18 +1,26 @@
+use std::path::Path;
 use std::process::{Child, Command};
 use std::sync::mpsc::Sender;
+use std::time::Duration;
 
 //manage c21 process
-enum ProcessRequest {
+pub enum ProcessRequest {
     Kill,
     Launch,
 }
 //start launcher
-fn update() -> Option<Child> {
-    Command::new("wine").arg("c21.exe").spawn().ok()
+pub fn update() -> Option<Child> {
+    #[cfg(not(windows))]
+    let process = Command::new("wine").arg("c21.exe").spawn().ok();
+
+    #[cfg(windows)]
+    let process = Command::new("c21.exe").spawn().ok();
+    process
 }
 //create launcher
-fn construct_launcher() -> Sender<ProcessRequest> {
+pub fn construct_launcher<P: AsRef<Path>+Send+'static>(path: P) -> Sender<ProcessRequest> {
     let (tx, rx) = std::sync::mpsc::channel();
+
     let _thread_id = std::thread::spawn(move || {
         let mut child: Option<Child> = None;
         for request in rx.iter() {
@@ -23,15 +31,37 @@ fn construct_launcher() -> Sender<ProcessRequest> {
                     }
                 }
                 ProcessRequest::Launch => {
-                    child = Command::new("wine")
-                        .arg("programs/cosmic.exe")
-                        .arg("-launch")
-                        .spawn()
-                        .ok();
+                    let log_output=std::fs::File::create("spawned_process_output.txt").unwrap();
+                    child = if cfg!(windows){
+                        Command::new("programs/cosmic.exe")
+                            .current_dir(path.as_ref())
+                            .arg("-launch")
+                            .spawn()
+                            .ok()
+                    }else{
+                        Command::new("wine")
+                            .current_dir(path.as_ref())
+                            .arg("programs/cosmic.exe")
+                            .arg("-launch")
+                            .stdout(log_output)
+                            .spawn()
+                            .ok()
+                    };
                 }
             }
         }
     });
 
     tx
+}
+#[test]
+fn test_launch() {
+    let base_path = "/home/rustacean/.wine/drive_c/CyberStep/C21/";
+    let ch=construct_launcher(base_path);
+    ch.send(ProcessRequest::Launch);
+    std::thread::sleep(Duration::from_secs(100));
+}
+#[test]
+fn test_kill(){
+
 }

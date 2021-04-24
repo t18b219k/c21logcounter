@@ -15,7 +15,7 @@ pub fn inject_mesa<P: AsRef<Path>>(path: P) {
         content.read_to_end(&mut data).unwrap();
         let path = path.as_ref().join(file_name);
         let mut file = std::fs::File::create(path).unwrap();
-        file.write(&data).unwrap();
+        file.write_all(&data).unwrap();
         file.flush().unwrap();
     }
 }

@@ -7,7 +7,7 @@ use sysinfo::{ProcessExt, System, SystemExt};
 pub struct Setting {
     pub launcher_name: String,
     pub base_path: String,
-    pub port: u16
+    pub port: u16,
 }
 
 pub enum GetPathError {
@@ -64,7 +64,7 @@ pub fn get_path_from_launcher() -> Result<Setting, GetPathError> {
     let setting = Setting {
         launcher_name: launcher_name.to_string(),
         base_path,
-        port: 7878
+        port: 7878,
     };
     println!("{:#?}", setting);
     Ok(setting)

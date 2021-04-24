@@ -5,8 +5,8 @@ extern crate regex;
 extern crate toml;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -25,15 +25,16 @@ use utils::sort;
 
 use crate::engines::{
     engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match,
-    InnerStatics, search_dungeon_clear, search_floor,
+    search_dungeon_clear, search_floor, InnerStatics,
 };
-use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
-use crate::process_manager::{construct_launcher, ProcessRequest, update};
+use crate::process_manager::{construct_launcher, update, ProcessRequest};
 use crate::setting::{get_path_from_launcher, Setting};
 use crate::utils::{
     connect_hashmap_drs, hashmap_to_vec_drs, load_tsv, read_from_file, read_from_file2,
-    read_from_file3, RewardSort, sort_drs, SortTarget,
+    read_from_file3, sort_drs, RewardSort, SortTarget,
 };
+use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
+use std::time::Duration;
 
 mod engines;
 mod mesa_inject;
@@ -187,7 +188,6 @@ impl Statics {
 }
 
 fn main() {
-
     //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle dungeon_reward
     //0     1     2   3    4    5          6           7           8             9       10     11       12     13         14
     let mut statics = vec![Statics::new(); 14];
@@ -203,16 +203,13 @@ fn main() {
         port = config.as_ref().unwrap().port;
     }
     let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port)).unwrap();
-    webbrowser::open(&format!("http://localhost:{}/",port));
+    webbrowser::open(&format!("http://localhost:{}/", port));
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
-        let mut buf = [0; 1024];
-        stream.read(&mut buf).unwrap();
-
-        let text = String::from_utf8_lossy(&buf[..]);
-        println!("{}", text);
+        let mut buffer = [0; 1024];
+        let bytes = stream.read(&mut buffer).unwrap();
+        let text = String::from_utf8_lossy(&buffer[0..bytes]);
         let request = request_parse(text.as_ref());
-        // println!("{:#?}", request);
 
         match request {
             None => {}
@@ -265,7 +262,6 @@ fn request_parse(text: &str) -> Option<HttpRequest> {
                 "CONNECT" => CONNECT,
                 _ => GET,
             };
-            //     println!("{:#?} {} {}", method, uri, version);
 
             Some(HttpRequest {
                 method,
@@ -286,44 +282,43 @@ fn make_response(
     drs: &mut DungeonRewardStatics,
     launcher: &mut Option<Sender<ProcessRequest>>,
 ) -> Vec<u8> {
-    // process query
-    if let Some(query) = request.queries.get(0) {
-        match query.0.as_ref() {
-            "generate_config" => {
-                if let Ok(setting) = get_path_from_launcher() {
-                    println!("Setting generated");
-                    let config_file_content = toml::to_string(&setting).unwrap();
-                    std::fs::write("./Settings.toml", config_file_content);
-                    config.replace(setting);
+    if let Some(ref mut config) = config {
+        // process query
+        if let Some(query) = request.queries.get(0) {
+            match query.0.as_ref() {
+                "generate_config" => {
+                    if let Ok(setting) = get_path_from_launcher() {
+                        println!("Setting generated");
+                        let config_file_content = toml::to_string(&setting).unwrap();
+                        std::fs::write("./Settings.toml", config_file_content);
+                        std::mem::replace(config, setting);
+                    }
                 }
-            }
-            "inject_mesa" => {
-                println!("Injecting mesa");
-                let mut programs_path = config.as_ref().map(|x| x.base_path.clone()).unwrap();
-                programs_path.push_str("programs");
-                mesa_inject::inject_mesa(programs_path);
-            }
-            "update_c21" => {
-                let process = update(config.as_ref().unwrap());
-            }
-            "launch_cosmic" => {
-                if let Some(ref sender) = launcher {
-                    sender.send(ProcessRequest::Launch);
+                "inject_mesa" => {
+                    println!("Injecting mesa");
+                    let mut programs_path = config.base_path.clone();
+                    programs_path.push_str("programs");
+                    mesa_inject::inject_mesa(programs_path);
                 }
-            }
-            "kill_cosmic" => {
-                if let Some(ref sender) = launcher {
-                    sender.send(ProcessRequest::Kill);
+                "update_c21" => {
+                    let process = update(config);
                 }
+                "launch_cosmic" => {
+                    if let Some(ref sender) = launcher {
+                        sender.send(ProcessRequest::Launch);
+                    }
+                }
+                "kill_cosmic" => {
+                    if let Some(ref sender) = launcher {
+                        sender.send(ProcessRequest::Kill);
+                    }
+                }
+                "exit" => {
+                    std::process::exit(0);
+                }
+                _ => {}
             }
-            "exit" => {
-                std::process::exit(0);
-            }
-            _ => {}
         }
-    }
-
-    if let Some(config) = config {
         let file = File::open(&request.uri);
         println!("request:{:#?}", request);
         let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
@@ -865,27 +860,31 @@ fn make_response(
         page.append(&mut payload);
         page
     } else {
+        //設定ファイルが読めないとき
         let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
         let mut buffer = Vec::with_capacity(512);
-        if request.uri.eq("./generate_config") {
-            match get_path_from_launcher() {
-                Ok(setting) => {
-                    //write setting
-                    println!("Setting generated");
-                    let config_file_content = toml::to_string(&setting).unwrap();
-                    std::fs::write("./Settings.toml", config_file_content);
 
-                    config.replace(setting);
-                }
-                Err(_) => {
-                    let mut please_start_launcher_page =
-                        File::open("please_start_launcher.html").unwrap();
-                    please_start_launcher_page.read_to_end(&mut buffer);
-                }
+        match get_path_from_launcher() {
+            Ok(setting) => {
+                //write setting
+                println!("Setting generated");
+                let config_file_content = toml::to_string(&setting).unwrap();
+                std::fs::write("./Settings.toml", config_file_content);
+                //config.replace(setting);
+                let mut old_position = Some(setting);
+                std::mem::swap(config, &mut old_position);
+                println!("{:#?}", old_position);
+                println!("{:#?}", config);
+                let mut config_not_found_page = File::open("config_not_found.html").unwrap();
+                config_not_found_page.read_to_end(&mut buffer);
+            }
+            Err(_) => {
+                let mut please_start_launcher_page =
+                    File::open("please_start_launcher.html").unwrap();
+                please_start_launcher_page.read_to_end(&mut buffer);
             }
         }
-        let mut config_not_found_page = File::open("config_not_found.html").unwrap();
-        config_not_found_page.read_to_end(&mut buffer);
+
         header.append(&mut buffer);
 
         header

@@ -62,12 +62,16 @@ pub fn construct_launcher<P: AsRef<Path> + Send + 'static>(path: P) -> Sender<Pr
 
     tx
 }
-#[test]
-fn test_launch() {
-    let base_path = "/home/rustacean/.wine/drive_c/CyberStep/C21/";
-    let ch = construct_launcher(base_path);
-    ch.send(ProcessRequest::Launch);
-    std::thread::sleep(Duration::from_secs(100));
+#[cfg(test)]
+mod process_manager_test {
+    use crate::process_manager::{construct_launcher, ProcessRequest};
+    use std::time::Duration;
+
+    #[test]
+    fn test_launch() {
+        let base_path = "/home/rustacean/.wine/drive_c/CyberStep/C21/";
+        let ch = construct_launcher(base_path);
+        ch.send(ProcessRequest::Launch);
+        std::thread::sleep(Duration::from_secs(100));
+    }
 }
-#[test]
-fn test_kill() {}

@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener};
+use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 use std::path::Path;
 use std::sync::mpsc::Sender;
 
@@ -34,7 +34,6 @@ use crate::utils::{
     read_from_file3, sort_drs, RewardSort, SortTarget,
 };
 use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
-use std::time::Duration;
 
 mod engines;
 mod mesa_inject;
@@ -301,7 +300,7 @@ fn make_response(
                     mesa_inject::inject_mesa(programs_path);
                 }
                 "update_c21" => {
-                    let process = update(config);
+                    let _process = update(config);
                 }
                 "launch_cosmic" => {
                     if let Some(ref sender) = launcher {

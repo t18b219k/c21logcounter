@@ -24,14 +24,15 @@ use crate::engines::{
     engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match,
     search_dungeon_clear, search_floor, InnerStatics,
 };
+use crate::process_manager::{construct_launcher, update, ProcessRequest};
 use crate::setting::{get_path_from_launcher, Setting};
 use crate::utils::{
     connect_hashmap_drs, hashmap_to_vec_drs, load_tsv, read_from_file, read_from_file2,
     read_from_file3, sort_drs, RewardSort, SortTarget,
 };
 use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
+use std::borrow::Cow;
 use std::collections::hash_map::RandomState;
-use crate::process_manager::{construct_launcher, ProcessRequest};
 use std::sync::mpsc::Sender;
 
 mod engines;
@@ -60,9 +61,10 @@ enum Method {
 }
 
 #[derive(Debug)]
-struct HttpRequest {
+struct HttpRequest<'a> {
     method: Method,
     uri: String,
+    queries: Vec<(Cow<'a, str>, Option<Cow<'a, str>>)>,
     version: f32,
 }
 struct DungeonRewardStatics {
@@ -192,18 +194,18 @@ fn main() {
     let mut dungeon_reward_statics = DungeonRewardStatics::new();
     let config_text = fs::read_to_string("Settings.toml");
     let mut config: Option<Setting> = None;
-    let mut launcher:Option<Sender<ProcessRequest>>=None;
+    let mut launcher: Option<Sender<ProcessRequest>> = None;
     if let Ok(config_text) = config_text {
         config = toml::from_str(&config_text).ok();
         launcher.replace(construct_launcher(config.clone().unwrap().base_path));
     }
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
-        println!("connection established");
         let mut buf = [0; 1024];
         stream.read(&mut buf).unwrap();
-        let text = String::from_utf8_lossy(&buf[..]);
 
+        let text = String::from_utf8_lossy(&buf[..]);
+        println!("{}", text);
         let request = request_parse(text.as_ref());
         // println!("{:#?}", request);
 
@@ -215,7 +217,7 @@ fn main() {
                     request,
                     &mut statics,
                     &mut dungeon_reward_statics,
-                    &mut launcher
+                    &mut launcher,
                 );
                 stream.write(&response);
             }
@@ -232,6 +234,17 @@ fn request_parse(text: &str) -> Option<HttpRequest> {
             let uri = String::from(".");
             let uri = uri + &cap[2];
             let uri = uri.as_str();
+            let mut uri_chunks = uri.split('?');
+            let uri = uri_chunks.next().unwrap();
+            let queries: Vec<(Cow<str>, Option<Cow<str>>)> = uri_chunks
+                .map(|s| {
+                    let mut query = s.split('=');
+                    (
+                        Cow::Owned(query.next().unwrap().to_string()),
+                        query.next().map(|v| Cow::Owned(v.to_string())),
+                    )
+                })
+                .collect();
             let uri = match uri {
                 "./" => "./index.html",
                 _ => &uri,
@@ -252,6 +265,7 @@ fn request_parse(text: &str) -> Option<HttpRequest> {
             Some(HttpRequest {
                 method,
                 uri: uri.to_string(),
+                queries,
                 version: 1.1,
             })
         }
@@ -265,10 +279,48 @@ fn make_response(
     request: HttpRequest,
     statics: &mut [Statics],
     drs: &mut DungeonRewardStatics,
-    launcher:&mut Option<Sender<ProcessRequest>>,
+    launcher: &mut Option<Sender<ProcessRequest>>,
 ) -> Vec<u8> {
+    // process query
+    if let Some(query) = request.queries.get(0) {
+        match query.0.as_ref() {
+            "generate_config" => {
+                if let Ok(setting) = get_path_from_launcher() {
+                    println!("Setting generated");
+                    let config_file_content = toml::to_string(&setting).unwrap();
+                    std::fs::write("./Settings.toml", config_file_content);
+                    config.replace(setting);
+                }
+            }
+            "inject_mesa" => {
+                println!("Injecting mesa");
+                let mut programs_path = config.as_ref().map(|x| x.base_path.clone()).unwrap();
+                programs_path.push_str("programs");
+                mesa_inject::inject_mesa(programs_path);
+            }
+            "update_c21" => {
+                let process = update(config.as_ref().unwrap());
+            }
+            "launch_cosmic" => {
+                if let Some(ref sender) = launcher {
+                    sender.send(ProcessRequest::Launch);
+                }
+            }
+            "kill_cosmic" => {
+                if let Some(ref sender) = launcher {
+                    sender.send(ProcessRequest::Kill);
+                }
+            }
+            "exit" => {
+                std::process::exit(0);
+            }
+            _ => {}
+        }
+    }
+
     if let Some(config) = config {
         let file = File::open(&request.uri);
+        println!("request:{:#?}", request);
         let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
         lazy_static! {
             static ref dictionaries: Vec<HashMap<String, String>> = {
@@ -294,48 +346,7 @@ fn make_response(
                 Err(err) => {
                     eprintln!("{}", err);
                     let uri = request.uri;
-
                     match uri.as_str() {
-                        "./generate_config"=>{
-                            let mut buffer = Vec::with_capacity(512);
-                            match get_path_from_launcher(){
-                                Ok(setting) => {
-                                    //write setting
-                                    println!("Setting generated");
-                                    let config_file_content=toml::to_string(&setting).unwrap();
-                                    std::fs::write("./Settings.toml",config_file_content);
-
-                                    *config=setting;
-                                }
-                                Err(_)=> {
-                                    let mut please_start_launcher_page = File::open("please_start_launcher.html").unwrap();
-                                    please_start_launcher_page.read_to_end(&mut buffer);
-                                }
-                            }
-                            buffer
-                        },
-                        "./inject_mesa"=>{
-                            let mut programs_path = config.base_path.clone();
-                            programs_path.push_str("programs");
-                            mesa_inject::inject_mesa(programs_path);
-                            Vec::from(include_str!("injecting_mesa.html"))
-                        },
-                        "./update_c21"=>{
-
-                            Vec::from(include_str!("injecting_mesa.html"))
-                        },
-                        "./launch_cosmic"=>{
-                            if let Some(ref sender)=launcher{
-                                sender.send(ProcessRequest::Launch);
-                            }
-                            Vec::from(include_str!("injecting_mesa.html"))
-                        },
-                        "./kill_cosmic"=>{
-                            if let Some(ref sender)=launcher{
-                                sender.send(ProcessRequest::Kill);
-                            }
-                            Vec::from(include_str!("injecting_mesa.html"))
-                        },
                         //RTLCの機能はCGIとして実装
                         "./dungeon_reward" => {
                             let mut paths = Vec::new();//パスのリスト
@@ -761,16 +772,7 @@ fn make_response(
                             table.push_str("</body></html>");
                             table.into_bytes()
                         }
-                        //アイテム取得,パーツ取得 etc
-                        /*
-                                            "./dungeon_clear"=>{
 
-                                            },//ダンジョン攻略
-                                            "./treasure"=>{
-
-                                            },//ダンジョン報酬
-                        */
-                        //CGIのどれにも該当しない
                         "./floor" => {
                             let mut paths = Vec::new();//パスのリスト
                             let c21_chat_file_list = fs::read_dir(chat_dir_path).unwrap();
@@ -847,7 +849,7 @@ fn make_response(
                             Vec::from("<html><title>Now Constructing</title><body><h1>Now Constructing</h1></body></html>")
                         }
                         _ => Vec::from(
-                            "<html><title>Not Found</title><body><h1>NotFound</h1></body></html>",
+                           Vec::from(include_str!("not_found.html"))
                         ),
                     }
                 }
@@ -880,6 +882,7 @@ fn make_response(
         let mut config_not_found_page = File::open("config_not_found.html").unwrap();
         config_not_found_page.read_to_end(&mut buffer);
         header.append(&mut buffer);
+
         header
     }
 }

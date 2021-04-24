@@ -420,11 +420,11 @@ pub fn engine_get_info(texts: Vec<String>) -> Vec<String> {
 
 pub fn get_time(text: &str) -> String {
     lazy_static! {
-        static ref re: Regex =
+        static ref RE: Regex =
             Regex::new(r"(?P<time>\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2})\t\[INFO]\t(?P<text>.+)")
                 .unwrap();
     }
-    let captures = re.captures(text);
+    let captures = RE.captures(text);
     match captures {
         None => "No time stamp".to_string(),
         Some(caps) => caps.name("time").unwrap().as_str().to_string(),

@@ -12,11 +12,11 @@ pub fn inject_mesa<P: AsRef<Path>>(path: P) {
     for (url, file_name) in urls.iter().zip(file_names.iter()) {
         let mut content = ureq::get(url).call().unwrap().into_reader();
         let mut data = Vec::new();
-        content.read_to_end(&mut data);
+        content.read_to_end(&mut data).unwrap();
         let path = path.as_ref().join(file_name);
         let mut file = std::fs::File::create(path).unwrap();
-        file.write(&data);
-        file.flush();
+        file.write(&data).unwrap();
+        file.flush().unwrap();
     }
 }
 #[test]

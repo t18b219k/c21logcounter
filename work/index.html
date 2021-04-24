@@ -22,19 +22,20 @@
 <p>
     <input onclick="location.href='http://localhost:7878/dungeon_clear'" type="button" value="ダンジョンクリア">
     <input onclick="location.href='http://localhost:7878/burst'" type="button" value="突発ミッション">
-    <input onclick="location.href='http://localhost:7878/mission'" type="button" value="ミッション" >
+    <input onclick="location.href='http://localhost:7878/mission'" type="button" value="ミッション">
     <input onclick="location.href='http://localhost:7878/shuttle'" type="button" value="シャトル">
 </p>
 <p>
     <input onclick="location.href='http://localhost:7878/dungeon_reward'" type="button" value="ダンジョン報酬">
 </p>
 <h2>システム</h2>
-<p>
-    <input onclick="location.href='http://localhost:7878/inject_mesa'" type="button" value="Mesa OpenGL 導入">
-    <input onclick="location.href='http://localhost:7878/update_c21'" type="button" value="C21アップデート">
-    <input onclick="location.href='http://localhost:7878/launch_cosmic'" type="button" value="C21 起動">
-    <input onclick="location.href='http://localhost:7878/kill_cosmic'" type="button" value="C21 強制終了">
-    <input onclick="location.href='http://localhost:7878/generate_config'" type="button" value="設定を生成">
-</p>
+<form>
+    <button name="inject_mesa" type="submit" value="">Mesa OpenGL 導入</button>
+    <button name="update_c21" type="submit">C21アップデート</button>
+    <button name="launch_cosmic" type="submit">C21 起動</button>
+    <button name=kill_cosmic type="submit">C21 強制終了</button>
+    <button name="generate_config" type="submit">設定を生成</button>
+    <button name="exit" type="submit">終了</button>
+</form>
 </body>
 </html>

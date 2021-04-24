@@ -135,7 +135,7 @@ pub fn load_tsv<P: AsRef<Path>>(path: P) -> HashMap<String, String> {
     let mut map = HashMap::new();
     let mut file = fs::File::open(path).unwrap();
     let mut string = String::new();
-    file.read_to_string(&mut string);
+    file.read_to_string(&mut string).unwrap();
     let iter = string.split("\n");
     for line in iter {
         let mut iter = line.split("\t");

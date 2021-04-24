@@ -58,36 +58,43 @@ pub fn read_from_file<P: AsRef<Path>>(path: P) -> Vec<String> {
     let content = fs::read(path).unwrap();
     let content = content.as_slice();
     let content = WINDOWS_31J.decode(content, DecoderTrap::Ignore).unwrap();
-    let texts = engine_get_text(&content);
-    texts
+    engine_get_text(&content)
 }
 
 pub fn read_from_file2<P: AsRef<Path>>(path: P) -> Vec<String> {
     let content = fs::read(path).unwrap();
     let content = content.as_slice();
     let content = WINDOWS_31J.decode(content, DecoderTrap::Ignore).unwrap();
-    let texts = engine_get_info(engine_get_text2(&content));
-    texts
+    engine_get_info(engine_get_text2(&content))
 }
 
 pub fn read_from_file3<P: AsRef<Path>>(path: P) -> Vec<String> {
     let content = fs::read(path).unwrap();
     let content = content.as_slice();
     let content = WINDOWS_31J.decode(content, DecoderTrap::Ignore).unwrap();
-    let texts = engine_get_text3(&content);
-    texts
+    engine_get_text3(&content)
+
 }
 
 pub fn connect_hashmap(map0: InnerStatics, map1: InnerStatics) -> InnerStatics {
-    let mut new = map0.clone();
+    let mut new = map0;
     for (item, qty) in map1.iter() {
+        /*
         match new.get(item) {
             Some(old) => {
-                let qty = old.clone() + *qty;
+                let qty = old + *qty;
                 new.insert(item.to_string(), qty);
             }
             None => {
                 new.insert(item.to_string(), *qty);
+            }
+        }*/
+        match new.get_mut(item){
+            None => {
+                new.insert(item.to_string(),*qty);
+            }
+            Some(value) => {
+                *value+=*qty;
             }
         }
     }
@@ -98,8 +105,17 @@ pub fn connect_hashmap_drs(
     map0: HashMap<String, (isize, isize)>,
     map1: HashMap<String, (isize, isize)>,
 ) -> HashMap<String, (isize, isize)> {
-    let mut new = map0.clone();
+    let mut new = map0;
     for (item, qty) in map1.iter() {
+        match new.get_mut(item){
+            None => {
+                new.insert(item.to_string(),*qty);
+            }
+            Some(value) => {
+                *value=(value.0+qty.0,value.1+qty.0);
+            }
+        }
+        /*
         match new.get(item) {
             Some(old) => {
                 let qty = (old.0 + qty.0, old.1 + qty.1);
@@ -109,6 +125,8 @@ pub fn connect_hashmap_drs(
                 new.insert(item.to_string(), *qty);
             }
         }
+         */
+
     }
     new
 }
@@ -136,9 +154,9 @@ pub fn load_tsv<P: AsRef<Path>>(path: P) -> HashMap<String, String> {
     let mut file = fs::File::open(path).unwrap();
     let mut string = String::new();
     file.read_to_string(&mut string).unwrap();
-    let iter = string.split("\n");
+    let iter = string.split('\n');
     for line in iter {
-        let mut iter = line.split("\t");
+        let mut iter = line.split('\t');
         let key = iter.next().unwrap().to_string();
         // let key= key.replace("\\t","\t");
         let value = iter.next().unwrap().to_string();

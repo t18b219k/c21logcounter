@@ -106,12 +106,21 @@ impl DungeonRewardStatics {
         for entry in data {
             let (name, qty) = entry;
             let (_reward, _sells) = qty;
+            /*
             match self.statics.get(&name) {
                 None => {
                     self.statics.insert(name, qty);
                 }
                 Some(old) => {
                     self.statics.insert(name, (old.0 + qty.0, old.1 + qty.1));
+                }
+            }*/
+            match self.statics.get_mut(&name){
+                None => {
+                    self.statics.insert(name,qty);
+                }
+                Some(value) => {
+                    *value=(value.0+qty.0,value.1+qty.1);
                 }
             }
         }
@@ -162,12 +171,12 @@ impl Statics {
     fn update_statics(&mut self, data: InnerStatics) {
         for entry in data {
             let (name, qty) = entry;
-            match self.statics.get(&name) {
+            match self.statics.get_mut(&name) {
                 None => {
                     self.statics.insert(name, qty);
                 }
-                Some(old) => {
-                    self.statics.insert(name, old + qty);
+                Some(value) => {
+                    *value+= qty;
                 }
             }
         }

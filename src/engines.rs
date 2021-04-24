@@ -10,24 +10,27 @@ pub fn engine_kill_self(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for i in from..last {
-        let text = &texts[i];
-        match re.captures(text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-
-                match table.get(name) {
-                    Some(v) => {
-                        table.insert(name.to_string(), v + 1);
-                    }
-                    None => {
-                        table.insert(name.to_string(), 1);
-                    }
-                };
+    for text in &texts[from..last]{
+        if let Some(caps) = re.captures(text) {
+            let name = caps.name("name").unwrap().as_str();
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(value) => {
+                    *value += 1;
+                }
             }
-            None => {}
         }
     }
+    /*
+    let last = texts.len();
+    for i in from..last {
+        let text = &texts[i];
+
+    }
+    */
+
     table
 }
 
@@ -37,23 +40,20 @@ pub fn engine_gacha(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for i in from..last {
-        let text = &texts[i];
-        match re.captures(&text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-                match table.get(name) {
-                    Some(v) => {
-                        table.insert(name.to_string(), v + 1);
-                    }
-                    None => {
-                        table.insert(name.to_string(), 1);
-                    }
-                };
+    for text in &texts[from..last]{
+        if let Some(caps) = re.captures(&text) {
+            let name = caps.name("name").unwrap().as_str();
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(value) => {
+                    *value += 1;
+                }
             }
-            None => {}
         }
     }
+
     table
 }
 
@@ -66,19 +66,16 @@ pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
     let last = texts.len();
     for i in from..last {
         let text = &texts[i];
-        match re.captures(&text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-                match table.get(name) {
-                    Some(v) => {
-                        table.insert(name.to_string(), v + 1);
-                    }
-                    None => {
-                        table.insert(name.to_string(), 1);
-                    }
-                };
+        if let Some(caps) = re.captures(&text) {
+            let name = caps.name("name").unwrap().as_str();
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(value) => {
+                    *value += 1;
+                }
             }
-            None => {}
         }
     }
     table
@@ -151,19 +148,16 @@ pub fn engine_rare(texts: &[String], from: usize) -> InnerStatics {
     let last = texts.len();
     for i in from..last {
         let text = &texts[i];
-        match re.captures(&text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-                match table.get(name) {
-                    Some(v) => {
-                        table.insert(name.to_string(), v + 1);
-                    }
-                    None => {
-                        table.insert(name.to_string(), 1);
-                    }
-                };
+        if let Some(caps) = re.captures(&text) {
+            let name = caps.name("name").unwrap().as_str();
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(value) => {
+                    *value += 1;
+                }
             }
-            None => {}
         }
     }
     table
@@ -183,34 +177,30 @@ pub fn engine_labo(texts: &[String], from: usize) -> InnerStatics {
     let last = texts.len();
     for i in from..last {
         let text = &texts[i];
-        match re0.captures(text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-                let caps = re.captures(name);
-                let (k, val) = match caps {
-                    None => {
-                        //古いバージョンのログ
-                        (name, 1)
-                    }
-                    Some(caps) => {
-                        //新しいバージョンのログ
-                        let name = caps.name("name").unwrap().as_str();
-                        let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-                        (name, num)
-                    }
-                };
-                println!("{}:{}", k, val);
-                match table.get(k) {
-                    Some(v) => {
-                        //tableのエントリーがある場合
-                        table.insert(k.to_string(), v + val);
-                    }
-                    None => {
-                        table.insert(k.to_string(), val);
-                    }
-                };
+        if let Some(caps) = re0.captures(text) {
+            let name = caps.name("name").unwrap().as_str();
+            let caps = re.captures(name);
+            let (k, val) = match caps {
+                None => {
+                    //古いバージョンのログ
+                    (name, 1)
+                }
+                Some(caps) => {
+                    //新しいバージョンのログ
+                    let name = caps.name("name").unwrap().as_str();
+                    let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
+                    (name, num)
+                }
+            };
+            println!("{}:{}", k, val);
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(value) => {
+                    *value += val;
+                }
             }
-            None => {}
         }
     }
 
@@ -231,11 +221,22 @@ pub fn engine_tsv_match(
         text.remove(0);
         text.remove(0);
         let name = dictionary.get(&text);
+        /*
         match name {
             None => {}
             Some(name) => {
                 let qty = table.get(name).unwrap_or(&0);
                 table.insert(name.to_string(), qty + 1);
+            }
+        }*/
+
+        match name {
+            None=>{}
+            Some(name)=>{
+                match table.get_mut(name) {
+                    None => {table.insert(name.to_string(),1);}
+                    Some(qty) => {*qty+=1;}
+                }
             }
         }
     }
@@ -251,20 +252,17 @@ pub fn engine_item_get(texts: &[String], from: usize) -> InnerStatics {
     for i in from..last {
         let text = &texts[i];
         println!("{}", text);
-        match re.captures(&text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-                let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-                match table.get(name) {
-                    Some(v) => {
-                        table.insert(name.to_string(), v + num);
-                    }
-                    None => {
-                        table.insert(name.to_string(), num);
-                    }
-                };
+        if let Some(caps) = re.captures(&text) {
+            let name = caps.name("name").unwrap().as_str();
+            let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), num);
+                }
+                Some(value) => {
+                    *value += num;
+                }
             }
-            None => {}
         }
     }
     table
@@ -278,19 +276,16 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
     let last = texts.len();
     for i in from..last {
         let text = &texts[i];
-        match re.captures(&text) {
-            Some(caps) => {
-                let name = caps.name("name").unwrap().as_str();
-                match table.get(name) {
-                    Some(v) => {
-                        table.insert(name.to_string(), v + 1);
-                    }
-                    None => {
-                        table.insert(name.to_string(), 1);
-                    }
-                };
+        if let Some(caps) = re.captures(&text) {
+            let name = caps.name("name").unwrap().as_str();
+            match table.get_mut(name) {
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(value) => {
+                    *value += 1;
+                }
             }
-            None => {}
         }
     }
     table
@@ -299,7 +294,8 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
 //フロアゲートの起動を探す.(last)
 pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
-    let mut floor = 0;
+    let mut floor = None;
+    /*
     lazy_static! {
         static ref re: Regex = Regex::new(r"(?P<name>.+?)がフロアゲートを起動した！").unwrap();
     }
@@ -311,12 +307,22 @@ pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
                 floor = i;
             }
         }
+    }*/
+    for (offset,text) in texts[search_from..last].iter().enumerate(){
+        println!("offset {} ",offset);
+        if text.contains("がフロアゲートを起動した！"){
+            floor=Some(search_from+offset);
+        }
     }
+    floor
+    /*
     if floor == 0 {
         None
     } else {
         Some(floor)
     }
+    */
+
 }
 
 //フロアゲートの起動を探す.(first)
@@ -335,13 +341,15 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
             }
         }
     }
-    return None;
+    None
 }
 
 //ダンジョンクリア(last)
 pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usize> {
     //ダンジョン成功報酬
     let last = texts.len();
+    /*
+
     lazy_static! {
         static ref re: Regex = Regex::new(r"ダンジョン成功報酬").unwrap();
     }
@@ -352,6 +360,12 @@ pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usiz
             Some(_) => {
                 return Some(i);
             }
+        }
+    }
+    */
+    for (offset,text) in texts[search_from..last].iter().enumerate(){
+        if text.contains(r"ダンジョン成功報酬"){
+            return Some(search_from+offset)
         }
     }
     None

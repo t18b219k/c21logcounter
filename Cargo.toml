@@ -13,5 +13,6 @@ lazy_static = "*"
 encoding = "*"
 serde = {version="*",features=["derive"]}
 sysinfo = "*"
-ureq ="*"
+ureq = "*"
+webbrowser = "*"
 

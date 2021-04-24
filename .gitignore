@@ -1,3 +1,5 @@
 /target
 **/*.rs.bk
 /work/dungeon_statics
+Cargo.lock
+c21logcounter.iml

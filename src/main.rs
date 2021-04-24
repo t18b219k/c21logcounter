@@ -2,14 +2,17 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
-
 extern crate toml;
+
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::RandomState;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener};
 use std::path::Path;
+use std::sync::mpsc::Sender;
 
 use regex::Regex;
 
@@ -22,18 +25,15 @@ use utils::sort;
 
 use crate::engines::{
     engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match,
-    search_dungeon_clear, search_floor, InnerStatics,
+    InnerStatics, search_dungeon_clear, search_floor,
 };
-use crate::process_manager::{construct_launcher, update, ProcessRequest};
+use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
+use crate::process_manager::{construct_launcher, ProcessRequest, update};
 use crate::setting::{get_path_from_launcher, Setting};
 use crate::utils::{
     connect_hashmap_drs, hashmap_to_vec_drs, load_tsv, read_from_file, read_from_file2,
-    read_from_file3, sort_drs, RewardSort, SortTarget,
+    read_from_file3, RewardSort, sort_drs, SortTarget,
 };
-use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
-use std::borrow::Cow;
-use std::collections::hash_map::RandomState;
-use std::sync::mpsc::Sender;
 
 mod engines;
 mod mesa_inject;
@@ -187,7 +187,7 @@ impl Statics {
 }
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
     //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle dungeon_reward
     //0     1     2   3    4    5          6           7           8             9       10     11       12     13         14
     let mut statics = vec![Statics::new(); 14];
@@ -195,10 +195,15 @@ fn main() {
     let config_text = fs::read_to_string("Settings.toml");
     let mut config: Option<Setting> = None;
     let mut launcher: Option<Sender<ProcessRequest>> = None;
+    let mut port = 7878;
+
     if let Ok(config_text) = config_text {
         config = toml::from_str(&config_text).ok();
         launcher.replace(construct_launcher(config.clone().unwrap().base_path));
+        port = config.as_ref().unwrap().port;
     }
+    let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port)).unwrap();
+    webbrowser::open(&format!("http://localhost:{}/",port));
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
         let mut buf = [0; 1024];

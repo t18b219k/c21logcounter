@@ -115,12 +115,12 @@ impl DungeonRewardStatics {
                     self.statics.insert(name, (old.0 + qty.0, old.1 + qty.1));
                 }
             }*/
-            match self.statics.get_mut(&name){
+            match self.statics.get_mut(&name) {
                 None => {
-                    self.statics.insert(name,qty);
+                    self.statics.insert(name, qty);
                 }
                 Some(value) => {
-                    *value=(value.0+qty.0,value.1+qty.1);
+                    *value = (value.0 + qty.0, value.1 + qty.1);
                 }
             }
         }
@@ -176,7 +176,7 @@ impl Statics {
                     self.statics.insert(name, qty);
                 }
                 Some(value) => {
-                    *value+= qty;
+                    *value += qty;
                 }
             }
         }
@@ -312,12 +312,16 @@ fn make_response(
                 }
                 "launch_cosmic" => {
                     if let Some(ref sender) = launcher {
-                        sender.send(ProcessRequest::Launch).expect("Failed to send launch message");
+                        sender
+                            .send(ProcessRequest::Launch)
+                            .expect("Failed to send launch message");
                     }
                 }
                 "kill_cosmic" => {
                     if let Some(ref sender) = launcher {
-                        sender.send(ProcessRequest::Kill).expect("Failed to send kill message");
+                        sender
+                            .send(ProcessRequest::Kill)
+                            .expect("Failed to send kill message");
                     }
                 }
                 "exit" => {

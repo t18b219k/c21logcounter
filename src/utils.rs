@@ -73,28 +73,17 @@ pub fn read_from_file3<P: AsRef<Path>>(path: P) -> Vec<String> {
     let content = content.as_slice();
     let content = WINDOWS_31J.decode(content, DecoderTrap::Ignore).unwrap();
     engine_get_text3(&content)
-
 }
 
 pub fn connect_hashmap(map0: InnerStatics, map1: InnerStatics) -> InnerStatics {
     let mut new = map0;
     for (item, qty) in map1.iter() {
-        /*
-        match new.get(item) {
-            Some(old) => {
-                let qty = old + *qty;
-                new.insert(item.to_string(), qty);
-            }
+        match new.get_mut(item) {
             None => {
                 new.insert(item.to_string(), *qty);
             }
-        }*/
-        match new.get_mut(item){
-            None => {
-                new.insert(item.to_string(),*qty);
-            }
             Some(value) => {
-                *value+=*qty;
+                *value += *qty;
             }
         }
     }
@@ -107,26 +96,14 @@ pub fn connect_hashmap_drs(
 ) -> HashMap<String, (isize, isize)> {
     let mut new = map0;
     for (item, qty) in map1.iter() {
-        match new.get_mut(item){
-            None => {
-                new.insert(item.to_string(),*qty);
-            }
-            Some(value) => {
-                *value=(value.0+qty.0,value.1+qty.0);
-            }
-        }
-        /*
-        match new.get(item) {
-            Some(old) => {
-                let qty = (old.0 + qty.0, old.1 + qty.1);
-                new.insert(item.to_string(), qty);
-            }
+        match new.get_mut(item) {
             None => {
                 new.insert(item.to_string(), *qty);
             }
+            Some(value) => {
+                *value = (value.0 + qty.0, value.1 + qty.0);
+            }
         }
-         */
-
     }
     new
 }

@@ -10,7 +10,7 @@ pub fn engine_kill_self(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE.captures(text) {
             let name = caps.name("name").unwrap().as_str();
             match table.get_mut(name) {
@@ -32,7 +32,7 @@ pub fn engine_gacha(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
             match table.get_mut(name) {
@@ -56,7 +56,7 @@ pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
             match table.get_mut(name) {
@@ -83,7 +83,7 @@ pub fn engine_reward_dungeon(texts: &[String], from: usize) -> HashMap<String, (
     }
     let mut table: HashMap<String, (isize, isize)> = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         match RE2.captures(&text) {
             Some(caps) => {
                 let name = caps.name("name").unwrap().as_str();
@@ -136,7 +136,7 @@ pub fn engine_rare(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
             match table.get_mut(name) {
@@ -164,7 +164,7 @@ pub fn engine_labo(texts: &[String], from: usize) -> InnerStatics {
         }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE0.captures(text) {
             let name = caps.name("name").unwrap().as_str();
             let caps = RE.captures(name);
@@ -201,8 +201,8 @@ pub fn engine_tsv_match(
 ) -> InnerStatics {
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
-        let mut text =text.clone();
+    for text in &texts[from..last] {
+        let mut text = text.clone();
         text = text.replace("\r", "");
         text = text.replace("\t", "\\t");
         text.remove(0);
@@ -210,8 +210,12 @@ pub fn engine_tsv_match(
         let name = dictionary.get(&text);
         if let Some(name) = name {
             match table.get_mut(name) {
-                None => { table.insert(name.to_string(), 1); }
-                Some(qty) => { *qty += 1; }
+                None => {
+                    table.insert(name.to_string(), 1);
+                }
+                Some(qty) => {
+                    *qty += 1;
+                }
             }
         }
     }
@@ -224,7 +228,7 @@ pub fn engine_item_get(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
             let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
@@ -247,7 +251,7 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    for text in &texts[from..last]{
+    for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
             match table.get_mut(name) {
@@ -267,10 +271,10 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
 pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
     let mut floor = None;
-    for (offset,text) in texts[search_from..last].iter().enumerate(){
-        println!("offset {} ",offset);
-        if text.contains("がフロアゲートを起動した！"){
-            floor=Some(search_from+offset);
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        println!("offset {} ", offset);
+        if text.contains("がフロアゲートを起動した！") {
+            floor = Some(search_from + offset);
         }
     }
     floor
@@ -282,9 +286,9 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(?P<name>.+?)がフロアゲートを起動した！").unwrap();
     }
-    for (offset,text) in texts[search_from..last].iter().enumerate(){
-        if RE.captures(text).is_some(){
-            return Some(offset+search_from)
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if RE.captures(text).is_some() {
+            return Some(offset + search_from);
         }
     }
     None
@@ -294,9 +298,9 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
 pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usize> {
     //ダンジョン成功報酬
     let last = texts.len();
-    for (offset,text) in texts[search_from..last].iter().enumerate(){
-        if text.contains(r"ダンジョン成功報酬"){
-            return Some(search_from+offset)
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if text.contains(r"ダンジョン成功報酬") {
+            return Some(search_from + offset);
         }
     }
     None

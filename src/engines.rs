@@ -267,19 +267,6 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
 pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
     let mut floor = None;
-    /*
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"(?P<name>.+?)がフロアゲートを起動した！").unwrap();
-    }
-    for i in search_from..last {
-        let text = &texts[i];
-        match RE.captures(text) {
-            None => {}
-            Some(_) => {
-                floor = i;
-            }
-        }
-    }*/
     for (offset,text) in texts[search_from..last].iter().enumerate(){
         println!("offset {} ",offset);
         if text.contains("がフロアゲートを起動した！"){
@@ -287,14 +274,6 @@ pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
         }
     }
     floor
-    /*
-    if floor == 0 {
-        None
-    } else {
-        Some(floor)
-    }
-    */
-
 }
 
 //フロアゲートの起動を探す.(first)

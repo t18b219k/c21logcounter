@@ -299,7 +299,6 @@ fn make_response(
                         println!("Setting generated");
                         let config_file_content = toml::to_string(&setting).unwrap();
                         std::fs::write("./Settings.toml", config_file_content);
-                        std::mem::replace(config, setting);
                     }
                 }
                 "inject_mesa" => {
@@ -313,12 +312,12 @@ fn make_response(
                 }
                 "launch_cosmic" => {
                     if let Some(ref sender) = launcher {
-                        sender.send(ProcessRequest::Launch);
+                        sender.send(ProcessRequest::Launch).expect("Failed to send launch message");
                     }
                 }
                 "kill_cosmic" => {
                     if let Some(ref sender) = launcher {
-                        sender.send(ProcessRequest::Kill);
+                        sender.send(ProcessRequest::Kill).expect("Failed to send kill message");
                     }
                 }
                 "exit" => {
@@ -331,7 +330,7 @@ fn make_response(
         println!("request:{:#?}", request);
         let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
         lazy_static! {
-            static ref dictionaries: Vec<HashMap<String, String>> = {
+            static ref DICTIONARIES: Vec<HashMap<String, String>> = {
                 let shuttle_tsv = load_tsv("./shuttle.tsv");
                 let dungeon_tsv = load_tsv("./dungeon.tsv");
                 let mission_tsv = load_tsv("./mission.tsv");
@@ -512,22 +511,22 @@ fn make_response(
                                         }
                                         "./burst" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &dictionaries[0], 0);
+                                            let data = engine_tsv_match(&texts, &DICTIONARIES[0], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         "./dungeon_clear" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &dictionaries[1], 0);
+                                            let data = engine_tsv_match(&texts, &DICTIONARIES[1], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         "./mission" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &dictionaries[2], 0);
+                                            let data = engine_tsv_match(&texts, &DICTIONARIES[2], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         "./shuttle" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &dictionaries[3], 0);
+                                            let data = engine_tsv_match(&texts, &DICTIONARIES[3], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         _ => {}
@@ -602,19 +601,19 @@ fn make_response(
                                 }
                                 "./burst" => {
                                     let texts = read_from_file3(last.0);
-                                    (statics[10].get_statics(), engine_tsv_match(&texts, &dictionaries[0], 0))
+                                    (statics[10].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[0], 0))
                                 }
                                 "./dungeon_clear" => {
                                     let texts = read_from_file3(last.0);
-                                    (statics[11].get_statics(), engine_tsv_match(&texts, &dictionaries[1], 0))
+                                    (statics[11].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[1], 0))
                                 }
                                 "./mission" => {
                                     let texts = read_from_file3(last.0);
-                                    (statics[12].get_statics(), engine_tsv_match(&texts, &dictionaries[2], 0))
+                                    (statics[12].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[2], 0))
                                 }
                                 "./shuttle" => {
                                     let texts = read_from_file3(last.0);
-                                    (statics[13].get_statics(), engine_tsv_match(&texts, &dictionaries[3], 0))
+                                    (statics[13].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[3], 0))
                                 }
                                 _ => {
                                     let texts = read_from_file(last.0);
@@ -857,7 +856,7 @@ fn make_response(
                             Vec::from("<html><title>Now Constructing</title><body><h1>Now Constructing</h1></body></html>")
                         }
                         _ => Vec::from(
-                           Vec::from(include_str!("not_found.html"))
+                           include_str!("not_found.html")
                         ),
                     }
                 }

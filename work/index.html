@@ -3,39 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <title>C21Counter_rs</title>
+    <link href="./tab.css" rel="stylesheet" type="text/css">
 </head>
 
-<body>
-<h2>カウンター</h2>
-<p>
-    <input onclick="location.href='http://localhost:7878/dungeon'" type="button" value="ダンジョン内カウント">
-    <input onclick="location.href='http://localhost:7878/floor'" type="button" value="フロア内カウント">
-    <input onclick="location.href='http://localhost:7878/items'" src="./scrap.png" type="image" value="アイテムカウント">
-    <input onclick="location.href='http://localhost:7878/parts'" type="button" value="パーツカウント">
-</p>
-<p>
-    <input onclick="location.href='http://localhost:7878/kills'" type="button" value="キルカウント">
-    <input onclick="location.href='http://localhost:7878/labo'" type="button" value="合成カウント">
-    <input onclick="location.href='http://localhost:7878/use'" type="button" value="アイテム使用カウント">
-    <input onclick="location.href='http://localhost:7878/gacha'" type="button" value="ガチャカウント">
-</p>
-<p>
-    <input onclick="location.href='http://localhost:7878/dungeon_clear'" type="button" value="ダンジョンクリア">
-    <input onclick="location.href='http://localhost:7878/burst'" type="button" value="突発ミッション">
-    <input onclick="location.href='http://localhost:7878/mission'" type="button" value="ミッション">
-    <input onclick="location.href='http://localhost:7878/shuttle'" type="button" value="シャトル">
-</p>
-<p>
-    <input onclick="location.href='http://localhost:7878/dungeon_reward'" type="button" value="ダンジョン報酬">
-</p>
-<h2>システム</h2>
+<body id="body">
 <form>
     <button name="inject_mesa" type="submit" value="">Mesa OpenGL 導入</button>
     <button name="update_c21" type="submit">C21アップデート</button>
     <button name="launch_cosmic" type="submit">C21 起動</button>
     <button name=kill_cosmic type="submit">C21 強制終了</button>
+    <button name="launch_stage_editor" type="submit">ステージエディタ 起動</button>
+    <button name="kill_stage_editor" type="submit">ステージエディタ 強制終了</button>
     <button name="generate_config" type="submit">設定を生成</button>
     <button name="exit" type="submit">終了</button>
 </form>
+<section class="tab_contents">
+    <div class="tab_wrap">
+        <a class="tab_lab" href="dungeon" target="counter">ダンジョン内カウント</a>
+        <a class="tab_lab" href="floor" target="counter">フロア内カウント</a>
+        <a class="tab_lab" href="items" target="counter">アイテムカウント</a>
+        <a class="tab_lab" href="parts" target="counter">パーツカウント</a>
+        <a class="tab_lab" href="kills" target="counter">キルカウント</a>
+        <a class="tab_lab" href="labo" target="counter">合成カウント</a>
+        <a class="tab_lab" href="use" target="counter">アイテム使用カウント</a>
+        <a class="tab_lab" href="gacha" target="counter">ガチャカウント</a>
+        <a class="tab_lab" href="dungeon_clear" target="counter">ダンジョンクリアカウント</a>
+        <a class="tab_lab" href="dungeon_reward" target="counter">ダンジョン報酬カウント</a>
+        <a class="tab_lab" href="burst" target="counter">突発カウント</a>
+        <a class="tab_lab" href="mission" target="counter">ミッションカウント</a>
+        <a class="tab_lab" href="shuttle" target="counter">シャトルカウント</a>
+    </div>
+</section>
+
+    <iframe id="counter" name="counter" src="dungeon" style="height: 240px" >
+        ブラウザのアップデートが必要です
+    </iframe>
+
+<script>    // 子画面の要素を取得
+const elm = document.getElementById("counter");
+
+// 子画面のコンテンツサイズに合わせてサイズを変更する関数
+function changeParentHeight(){
+    elm.style.height = elm.contentWindow.document.getElementsByTagName("html").item(0).scrollHeight + "px";
+}
+elm.onload=changeParentHeight;
+
+console.log("set size for frame");
+</script>
+
+
 </body>
 </html>

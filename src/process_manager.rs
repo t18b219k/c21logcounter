@@ -1,12 +1,15 @@
-use crate::setting::Setting;
 use std::path::Path;
 use std::process::{Child, Command};
 use std::sync::mpsc::Sender;
 
+use crate::setting::Setting;
+
 //manage c21 process
 pub enum ProcessRequest {
-    Kill,
-    Launch,
+    KillMain,
+    LaunchMain,
+    KillStageEditor,
+    LaunchStageEditor,
 }
 //start launcher
 pub fn update(setting: &Setting) -> Option<Child> {
@@ -29,17 +32,17 @@ pub fn construct_launcher<P: AsRef<Path> + Send + 'static>(path: P) -> Sender<Pr
     let (tx, rx) = std::sync::mpsc::channel();
 
     let _thread_id = std::thread::spawn(move || {
-        let mut child: Option<Child> = None;
+        let mut child_main: Option<Child> = None;
+        let mut child_stage_editor: Option<Child> = None;
         for request in rx.iter() {
             match request {
-                ProcessRequest::Kill => {
-                    if let Some(ref mut child) = child {
+                ProcessRequest::KillMain => {
+                    if let Some(ref mut child) = child_main {
                         child.kill().ok();
                     }
                 }
-                ProcessRequest::Launch => {
-                    let log_output = std::fs::File::create("spawned_process_output.txt").unwrap();
-                    child = if cfg!(windows) {
+                ProcessRequest::LaunchMain => {
+                    child_main = if cfg!(windows) {
                         Command::new("programs/cosmic.exe")
                             .current_dir(path.as_ref())
                             .arg("-launch")
@@ -50,7 +53,29 @@ pub fn construct_launcher<P: AsRef<Path> + Send + 'static>(path: P) -> Sender<Pr
                             .current_dir(path.as_ref())
                             .arg("programs/cosmic.exe")
                             .arg("-launch")
-                            .stdout(log_output)
+                            .spawn()
+                            .ok()
+                    };
+                }
+                ProcessRequest::KillStageEditor => {
+                    if let Some(ref mut child) = child_stage_editor {
+                        child.kill().ok();
+                    }
+                }
+                ProcessRequest::LaunchStageEditor => {
+                    child_stage_editor = if cfg!(windows) {
+                        Command::new("programs/cosmic.exe")
+                            .current_dir(path.as_ref())
+                            .arg("-launch")
+                            .arg("-stageedit")
+                            .spawn()
+                            .ok()
+                    } else {
+                        Command::new("wine")
+                            .current_dir(path.as_ref())
+                            .arg("programs/cosmic.exe")
+                            .arg("-launch")
+                            .arg("-stageedit")
                             .spawn()
                             .ok()
                     };
@@ -64,14 +89,15 @@ pub fn construct_launcher<P: AsRef<Path> + Send + 'static>(path: P) -> Sender<Pr
 }
 #[cfg(test)]
 mod process_manager_test {
-    use crate::process_manager::{construct_launcher, ProcessRequest};
     use std::time::Duration;
+
+    use crate::process_manager::{construct_launcher, ProcessRequest};
 
     #[test]
     fn test_launch() {
         let base_path = "/home/rustacean/.wine/drive_c/CyberStep/C21/";
         let ch = construct_launcher(base_path);
-        ch.send(ProcessRequest::Launch);
+        ch.send(ProcessRequest::LaunchMain);
         std::thread::sleep(Duration::from_secs(100));
     }
 }

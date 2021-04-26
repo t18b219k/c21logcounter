@@ -5,7 +5,6 @@ extern crate regex;
 extern crate toml;
 
 use std::borrow::Cow;
-use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
@@ -25,15 +24,15 @@ use utils::sort;
 
 use crate::engines::{
     engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match,
-    search_dungeon_clear, search_floor, InnerStatics,
+    InnerStatics, search_dungeon_clear, search_floor,DungeonRewardElement,
 };
-use crate::process_manager::{construct_launcher, update, ProcessRequest};
+use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
+use crate::process_manager::{construct_launcher, ProcessRequest, update};
 use crate::setting::{get_path_from_launcher, Setting};
 use crate::utils::{
     connect_hashmap_drs, hashmap_to_vec_drs, load_tsv, read_from_file, read_from_file2,
-    read_from_file3, sort_drs, RewardSort, SortTarget,
+    read_from_file3, RewardSort, sort_drs, SortTarget,
 };
-use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
 
 mod engines;
 mod mesa_inject;
@@ -69,7 +68,7 @@ struct HttpRequest<'a> {
 }
 struct DungeonRewardStatics {
     cache_list: HashSet<String>,
-    statics: HashMap<String, (isize, isize)>,
+    statics: HashMap<String, DungeonRewardElement>,
     last: usize,
 }
 
@@ -98,34 +97,25 @@ impl DungeonRewardStatics {
         require
     }
     // 統計データを取得
-    fn get_statics(&self) -> HashMap<String, (isize, isize), RandomState> {
+    fn get_statics(&self) -> HashMap<String,DungeonRewardElement> {
         self.statics.clone()
     }
     //統計データを更新
-    fn update_statics(&mut self, data: HashMap<String, (isize, isize)>) {
+    fn update_statics(&mut self, data: HashMap<String, DungeonRewardElement>) {
         for entry in data {
             let (name, qty) = entry;
-            let (_reward, _sells) = qty;
-            /*
-            match self.statics.get(&name) {
-                None => {
-                    self.statics.insert(name, qty);
-                }
-                Some(old) => {
-                    self.statics.insert(name, (old.0 + qty.0, old.1 + qty.1));
-                }
-            }*/
+
             match self.statics.get_mut(&name) {
                 None => {
                     self.statics.insert(name, qty);
                 }
                 Some(value) => {
-                    *value = (value.0 + qty.0, value.1 + qty.1);
+                    *value = *value + qty;
                 }
             }
         }
     }
-    fn rewrite_statics(&mut self, data: HashMap<String, (isize, isize)>) {
+    fn rewrite_statics(&mut self, data: HashMap<String, DungeonRewardElement>) {
         self.statics = data;
     }
     fn set_last(&mut self, last: usize) {
@@ -313,14 +303,28 @@ fn make_response(
                 "launch_cosmic" => {
                     if let Some(ref sender) = launcher {
                         sender
-                            .send(ProcessRequest::Launch)
+                            .send(ProcessRequest::LaunchMain)
                             .expect("Failed to send launch message");
                     }
                 }
                 "kill_cosmic" => {
                     if let Some(ref sender) = launcher {
                         sender
-                            .send(ProcessRequest::Kill)
+                            .send(ProcessRequest::KillMain)
+                            .expect("Failed to send kill message");
+                    }
+                }
+                "launch_stage_editor" => {
+                    if let Some(ref sender) = launcher {
+                        sender
+                            .send(ProcessRequest::LaunchStageEditor)
+                            .expect("Failed to send kill message");
+                    }
+                }
+                "kill_stage_editor" => {
+                    if let Some(ref sender) = launcher {
+                        sender
+                            .send(ProcessRequest::KillStageEditor)
                             .expect("Failed to send kill message");
                     }
                 }
@@ -419,7 +423,7 @@ fn make_response(
         location.reload(true);
         }
           setTimeout(reload, 30000);
-          </script><meta charset=\"UTF-8\"> <title>C21Counter_rs</title></head><body><table border=\"1\" width=\"200\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">".to_string();
+          </script><meta charset=\"UTF-8\"> <title>C21Counter_rs</title></head><body><table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">".to_string();
                             let table_row = "<tr><th>名前</th><th>報酬</th><th>売却</th></tr>";
                             droptable.push_str(table_row);
                             let mut vector = hashmap_to_vec_drs(&set);

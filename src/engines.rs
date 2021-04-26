@@ -213,7 +213,7 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
     for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
-            add_to_table(&mut table ,name,num);
+            add_to_table(&mut table ,name,1);
         }
     }
     table

@@ -3,3 +3,8 @@
 /work/dungeon_statics
 Cargo.lock
 c21logcounter.iml
+dist-i386-linux
+dist-i386-windows
+dist-x86_64-linux
+dist-x86_64-windows
+dungeon_statics

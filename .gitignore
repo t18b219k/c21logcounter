@@ -1,6 +1,7 @@
 /target
 **/*.rs.bk
 /work/dungeon_statics
+/work/Settings.toml
 Cargo.lock
 c21logcounter.iml
 dist-i386-linux
@@ -8,3 +9,8 @@ dist-i386-windows
 dist-x86_64-linux
 dist-x86_64-windows
 dungeon_statics
+C21Counteri386Linux.zip
+C21Counteri386Windows.zip
+C21CounterX64Linux.zip
+C21CounterX64Windows.zip
+.idea

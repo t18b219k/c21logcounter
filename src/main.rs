@@ -34,11 +34,25 @@ use crate::utils::{
     read_from_file3, RewardSort, sort_drs, SortTarget,
 };
 
+use sailfish::TemplateOnce;
+#[derive(TemplateOnce)]
+#[template(path="general.stpl")]
+struct GeneralStaticsTemplate{
+    name:String,
+    statics:Vec<(String,isize)>,
+}
+#[derive(TemplateOnce)]
+#[template(path="dungeon_reward.stpl")]
+struct GenerateDungeonRewardStaticsTemplate{
+    name:String,
+    statics:Vec<(String,DungeonRewardElement)>,
+}
 mod engines;
 mod mesa_inject;
 mod process_manager;
 mod setting;
 mod utils;
+
 
 #[derive(Clone)]
 struct Statics {
@@ -185,6 +199,18 @@ impl Statics {
     }
 }
 
+struct DungeonSave{
+    first_gate:Option<usize>,
+    last_gate:Option<usize>,
+    entered:bool,
+}
+use actix_web::{web,get,App,HttpResponse,HttpServer,Responder};
+use std::sync::Mutex;
+
+#[get()]
+fn dungeon_counter(date:web::Data<Mutex<DungeonSave>>)->impl Responder{
+
+}
 fn main() {
     //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle dungeon_reward
     //0     1     2   3    4    5          6           7           8             9       10     11       12     13         14
@@ -416,7 +442,10 @@ fn make_response(
                                 (drs.get_statics(), engine_reward_dungeon(&texts, 0))
                             };
                             let set = connect_hashmap_drs(items, lds);
+                            let mut vector = hashmap_to_vec_drs(&set);
+                            sort_drs(&mut vector, RewardSort::Reward,SortTarget::NAME, true);
                             //ITEMSとLDSを統合して出力
+                            /*
                             let mut droptable = "<!DOCTYPE html><html><head>
                         <script>
         function reload() {
@@ -426,15 +455,21 @@ fn make_response(
           </script><meta charset=\"UTF-8\"> <title>C21Counter_rs</title></head><body><table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">".to_string();
                             let table_row = "<tr><th>名前</th><th>報酬</th><th>売却</th></tr>";
                             droptable.push_str(table_row);
-                            let mut vector = hashmap_to_vec_drs(&set);
-                            sort_drs(&mut vector, RewardSort::Reward,SortTarget::NAME, true);
+
                             for row in vector {
                                 let (key, val) = row;
                                 let row_string = format!("<tr><td>{}</td><td>{}</td><td>{}</td></tr>\r\n", key, val.0,val.1);
                                 droptable.push_str(&row_string);
                             }
                             droptable.push_str("</table></body></html>");
-                            droptable.into_bytes()
+
+                            */
+                            let ctx=GenerateDungeonRewardStaticsTemplate{
+                                name: "ダンジョン報酬".to_string(),
+                                statics: vector
+                            };
+                            let text=ctx.render_once().unwrap();
+                            text.into_bytes()
                         }
                         "./items" | "./parts" | "./kills" | "./labo" | "./use" | "./gacha" | "./dungeon_clear" | "./burst" | "./mission" | "./shuttle" => {
                             let mut paths = Vec::new();//パスのリスト
@@ -628,8 +663,13 @@ fn make_response(
                                     (statics[0].get_statics(), engine_item_get(&texts, 0))
                                 }
                             };
-                            let set = connect_hashmap(items, lds);
                             //ITEMSとLDSを統合して出力
+                            let set = connect_hashmap(items, lds);
+                            let mut vector = hashmap_to_vec(&set);
+                            sort(&mut vector, SortTarget::NAME, true);
+                            let ctx=GeneralStaticsTemplate{ name: "".to_string(), statics: vector };
+                            ctx.render_once().unwrap().into_bytes()
+                            /*
                             let mut droptable = "<!DOCTYPE html><html><head>
                         <script>
         function reload() {
@@ -639,15 +679,14 @@ fn make_response(
           </script><meta charset=\"UTF-8\"> <title>C21Counter_rs</title></head><body><table border=\"1\" width=\"200\" cellspacing=\"0\" cellpadding=\"5\" bordercolor=\"#333333\">".to_string();
                             let table_row = "<tr><th>名前</th><th>個数</th></tr>";
                             droptable.push_str(table_row);
-                            let mut vector = hashmap_to_vec(&set);
-                            sort(&mut vector, SortTarget::NAME, true);
+
                             for row in vector {
                                 let (key, val) = row;
                                 let row_string = format!("<tr><td>{}</td><td>{}</td></tr>\r\n", key, val);
                                 droptable.push_str(&row_string);
                             }
                             droptable.push_str("</table></body></html>");
-                            droptable.into_bytes()
+                            droptable.into_bytes()*/
                         }
                         "./dungeon" => unsafe {
                             let mut paths = Vec::new();//パスのリスト

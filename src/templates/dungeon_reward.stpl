@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><%= name %></title>
+    <script src="reload.js" ></script>
+    <link href="./style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<h4><%= name %></h4>
+<table border="1" bordercolor="#333333" cellpadding="5" cellspacing="0" width="200">
+    <tr>
+        <th>名前</th>
+        <th>報酬</th>
+        <th>売却</th>
+    </tr>
+    <% for element in & statics{ %>
+    <tr>
+        <td><%= element.0 %></td>
+        <td><%= element.1.0 %></td>
+        <td><%= element.1.1 %></td>
+    </tr>
+    <% } %>
+</table>
+</body>
+</html>

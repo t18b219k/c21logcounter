@@ -15,4 +15,6 @@ serde = {version="*",features=["derive"]}
 sysinfo = "*"
 ureq = "*"
 webbrowser = "*"
-
+actix = "*"
+actix-web="*"
+sailfish="*"

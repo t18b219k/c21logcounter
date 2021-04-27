@@ -15,14 +15,14 @@ pub enum ProcessRequest {
 //start launcher
 pub fn update(setting: &Setting) -> Option<Child> {
     #[cfg(not(windows))]
-        let process = Command::new("wine")
+    let process = Command::new("wine")
         .current_dir(&setting.base_path)
         .arg(&setting.launcher_name)
         .spawn()
         .ok();
 
     #[cfg(windows)]
-        let process = Command::new(&setting.launcher_name)
+    let process = Command::new(&setting.launcher_name)
         .current_dir(&setting.base_path)
         .spawn()
         .ok();

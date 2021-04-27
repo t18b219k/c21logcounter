@@ -24,15 +24,15 @@ use utils::sort;
 
 use crate::engines::{
     engine_gacha, engine_get_part, engine_item_get, engine_reward_dungeon, engine_tsv_match,
-    InnerStatics, search_dungeon_clear, search_floor, DungeonRewardElement,
+    search_dungeon_clear, search_floor, DungeonRewardElement, InnerStatics,
 };
-use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
-use crate::process_manager::{construct_launcher, ProcessRequest, update};
+use crate::process_manager::{construct_launcher, update, ProcessRequest};
 use crate::setting::{get_path_from_launcher, Setting};
 use crate::utils::{
     connect_hashmap_drs, hashmap_to_vec_drs, load_tsv, read_from_file, read_from_file2,
-    read_from_file3, RewardSort, sort_drs, SortTarget,
+    read_from_file3, sort_drs, RewardSort, SortTarget,
 };
+use crate::Method::{CONNECT, DELETE, GET, HEAD, POST, PUT, TRACE};
 
 use sailfish::TemplateOnce;
 
@@ -50,17 +50,16 @@ struct GenerateDungeonRewardStaticsTemplate {
     statics: Vec<(String, DungeonRewardElement)>,
 }
 #[derive(TemplateOnce)]
-#[template(path ="inner_floor.stpl")]
-struct InFloorStaticsTemplate{
-    name:String,
-    set_of_statics:Vec<GeneralStaticsTemplate>,
+#[template(path = "inner_floor.stpl")]
+struct InFloorStaticsTemplate {
+    name: String,
+    set_of_statics: Vec<GeneralStaticsTemplate>,
 }
 mod engines;
 mod mesa_inject;
 mod process_manager;
 mod setting;
 mod utils;
-
 
 #[derive(Clone)]
 struct Statics {
@@ -228,7 +227,7 @@ struct GlobalDataShare {
     current_updating_file: String,
 }
 
-use actix_web::{web, get, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Mutex;
 
 fn load_chat_to_gds(config: Setting) -> GlobalDataShare {
@@ -248,12 +247,14 @@ fn load_chat_to_gds(config: Setting) -> GlobalDataShare {
 
                 paths.push((path, update));
             }
-            Err(error) => { eprintln!("{}", error) }
+            Err(error) => {
+                eprintln!("{}", error)
+            }
         }
     }
-    paths.sort_by(|a, b| { a.1.cmp(&b.1) });
+    paths.sort_by(|a, b| a.1.cmp(&b.1));
 
-    let last = paths.pop().unwrap();//最新
+    let last = paths.pop().unwrap(); //最新
 
     GlobalDataShare {
         config,
@@ -358,7 +359,7 @@ fn request_parse(text: &str) -> Option<HttpRequest> {
 }
 
 fn search_latest_log_file<P: AsRef<Path>>(chat_dir_path: P) -> (String, Vec<String>) {
-    let mut paths = Vec::new();//パスのリスト
+    let mut paths = Vec::new(); //パスのリスト
     let c21_chat_file_list = fs::read_dir(chat_dir_path).unwrap();
     for dir_entry in c21_chat_file_list {
         match dir_entry {
@@ -372,12 +373,14 @@ fn search_latest_log_file<P: AsRef<Path>>(chat_dir_path: P) -> (String, Vec<Stri
                 println!("{},{:#?}", path, update);
                 paths.push((path, update));
             }
-            Err(error) => { eprintln!("{}", error) }
+            Err(error) => {
+                eprintln!("{}", error)
+            }
         }
     }
-    paths.sort_by(|a, b| { a.1.cmp(&b.1) });
-    let last = paths.pop().unwrap();//最新
-    let paths: Vec<String> = paths.iter().map(|item| { item.0.clone() }).collect();
+    paths.sort_by(|a, b| a.1.cmp(&b.1));
+    let last = paths.pop().unwrap(); //最新
+    let paths: Vec<String> = paths.iter().map(|item| item.0.clone()).collect();
     (last.0, paths)
 }
 
@@ -475,7 +478,7 @@ fn make_response(
                         "./dungeon_reward" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let need_to_load = drs.query_cache(&paths);
-                            use std::sync::{Arc};
+                            use std::sync::Arc;
                             let (tx, rx) = std::sync::mpsc::channel();
                             let tx = Arc::new(Mutex::new(tx));
                             let ntl = need_to_load.clone();
@@ -488,8 +491,7 @@ fn make_response(
                                     let texts = read_from_file(&path);
                                     let data = engine_reward_dungeon(&texts, 0);
                                     tx.lock().unwrap().send(data);
-                                }
-                                );
+                                });
                             }
                             if !need_to_load.is_empty() {
                                 for (id, rcv) in rx.iter().enumerate() {
@@ -515,27 +517,28 @@ fn make_response(
                             let text = ctx.render_once().unwrap();
                             text.into_bytes()
                         }
-                        "./items" | "./parts" | "./kills" | "./labo" | "./use" | "./gacha" | "./dungeon_clear" | "./burst" | "./mission" | "./shuttle" => {
+                        "./items" | "./parts" | "./kills" | "./labo" | "./use" | "./gacha"
+                        | "./dungeon_clear" | "./burst" | "./mission" | "./shuttle" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             //ここはuriによってふるまいをかえる
                             let need_to_load = match uri.as_str() {
-                                "./items" => { statics[0].query_cache(&paths) }
-                                "./parts" => { statics[1].query_cache(&paths) }
-                                "./kills" => { statics[2].query_cache(&paths) }
-                                "./labo" => { statics[3].query_cache(&paths) }
-                                "./use" => { statics[4].query_cache(&paths) }
-                                "./gacha" => { statics[5].query_cache(&paths) }
+                                "./items" => statics[0].query_cache(&paths),
+                                "./parts" => statics[1].query_cache(&paths),
+                                "./kills" => statics[2].query_cache(&paths),
+                                "./labo" => statics[3].query_cache(&paths),
+                                "./use" => statics[4].query_cache(&paths),
+                                "./gacha" => statics[5].query_cache(&paths),
 
-                                "./burst" => { statics[10].query_cache(&paths) }
-                                "./dungeon_clear" => { statics[11].query_cache(&paths) }
-                                "./mission" => { statics[12].query_cache(&paths) }
-                                "./shuttle" => { statics[13].query_cache(&paths) }
-                                _ => { statics[0].query_cache(&paths) }
+                                "./burst" => statics[10].query_cache(&paths),
+                                "./dungeon_clear" => statics[11].query_cache(&paths),
+                                "./mission" => statics[12].query_cache(&paths),
+                                "./shuttle" => statics[13].query_cache(&paths),
+                                _ => statics[0].query_cache(&paths),
                             };
 
                             //更新が必要なものをリストアップ
 
-                            use std::sync::{Arc};
+                            use std::sync::Arc;
                             let (tx, rx) = std::sync::mpsc::channel();
                             let tx = Arc::new(Mutex::new(tx));
                             let ntl = need_to_load.clone();
@@ -579,22 +582,26 @@ fn make_response(
                                         }
                                         "./burst" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &DICTIONARIES[0], 0);
+                                            let data =
+                                                engine_tsv_match(&texts, &DICTIONARIES[0], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         "./dungeon_clear" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &DICTIONARIES[1], 0);
+                                            let data =
+                                                engine_tsv_match(&texts, &DICTIONARIES[1], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         "./mission" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &DICTIONARIES[2], 0);
+                                            let data =
+                                                engine_tsv_match(&texts, &DICTIONARIES[2], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         "./shuttle" => {
                                             let texts = read_from_file3(path);
-                                            let data = engine_tsv_match(&texts, &DICTIONARIES[3], 0);
+                                            let data =
+                                                engine_tsv_match(&texts, &DICTIONARIES[3], 0);
                                             tx.lock().unwrap().send(data);
                                         }
                                         _ => {}
@@ -669,19 +676,31 @@ fn make_response(
                                 }
                                 "./burst" => {
                                     let texts = read_from_file3(last);
-                                    (statics[10].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[0], 0))
+                                    (
+                                        statics[10].get_statics(),
+                                        engine_tsv_match(&texts, &DICTIONARIES[0], 0),
+                                    )
                                 }
                                 "./dungeon_clear" => {
                                     let texts = read_from_file3(last);
-                                    (statics[11].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[1], 0))
+                                    (
+                                        statics[11].get_statics(),
+                                        engine_tsv_match(&texts, &DICTIONARIES[1], 0),
+                                    )
                                 }
                                 "./mission" => {
                                     let texts = read_from_file3(last);
-                                    (statics[12].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[2], 0))
+                                    (
+                                        statics[12].get_statics(),
+                                        engine_tsv_match(&texts, &DICTIONARIES[2], 0),
+                                    )
                                 }
                                 "./shuttle" => {
                                     let texts = read_from_file3(last);
-                                    (statics[13].get_statics(), engine_tsv_match(&texts, &DICTIONARIES[3], 0))
+                                    (
+                                        statics[13].get_statics(),
+                                        engine_tsv_match(&texts, &DICTIONARIES[3], 0),
+                                    )
                                 }
                                 _ => {
                                     let texts = read_from_file(last);
@@ -692,7 +711,10 @@ fn make_response(
                             let set = connect_hashmap(items, lds);
                             let mut vector = hashmap_to_vec(&set);
                             sort(&mut vector, SortTarget::NAME, true);
-                            let ctx = GeneralStaticsTemplate { name: "".to_string(), statics: vector };
+                            let ctx = GeneralStaticsTemplate {
+                                name: "".to_string(),
+                                statics: vector,
+                            };
                             ctx.render_once().unwrap().into_bytes()
                         }
                         "./dungeon" => unsafe {
@@ -702,12 +724,14 @@ fn make_response(
                             static mut DONE_LINE: Option<usize> = None;
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(&last);
+                            //どこまでのテキストを処理したか記録する
                             if DONE_LINE.is_none() {
                                 DONE_LINE = Some(texts.len());
                             }
                             let from = search_floor(&texts, DONE_LINE.unwrap());
                             let last_clear_stack = search_dungeon_clear(&texts, DONE_LINE.unwrap());
                             //ダンジョン侵入判定
+                            //侵入してない状態で最新のダンジョンクリアよりフロアゲートの起動があとならば侵入したと判定する
                             if (last_clear_stack < from) & !ENTERED {
                                 ENTERED = true;
                                 LAST_FLOOR_GATE = from.unwrap();
@@ -715,50 +739,55 @@ fn make_response(
 
                             match last_clear_stack {
                                 None => {}
-                                Some(line) => {
-                                    LAST_CLEAR = line
-                                }
+                                Some(line) => LAST_CLEAR = line,
                             }
-                            let write_statics=|statics:&mut[Statics]|->String{
-                                let ctx=InFloorStaticsTemplate{ name: "ダンジョン内カウント".to_string(),
+                            let write_statics = |statics: &mut [Statics]| -> String {
+                                let ctx = InFloorStaticsTemplate {
+                                    name: "ダンジョン内カウント".to_string(),
                                     set_of_statics: vec![
-                                        GeneralStaticsTemplate{
+                                        GeneralStaticsTemplate {
                                             name: "アイテム取得".to_string(),
                                             statics: {
-                                                let mut  vector= hashmap_to_vec(&statics[6].statics);
-                                                sort(&mut vector,SortTarget::NAME,true);
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics[6].statics);
+                                                sort(&mut vector, SortTarget::NAME, true);
                                                 vector
-                                            }
+                                            },
                                         },
-                                        GeneralStaticsTemplate{
+                                        GeneralStaticsTemplate {
                                             name: "パーツ取得".to_string(),
                                             statics: {
-                                                let mut  vector= hashmap_to_vec(&statics[7].statics);
-                                                sort(&mut vector,SortTarget::NAME,true);
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics[7].statics);
+                                                sort(&mut vector, SortTarget::NAME, true);
                                                 vector
-                                            }
+                                            },
                                         },
-                                        GeneralStaticsTemplate{
+                                        GeneralStaticsTemplate {
                                             name: "キル".to_string(),
                                             statics: {
-                                                let mut  vector= hashmap_to_vec(&statics[8].statics);
-                                                sort(&mut vector,SortTarget::NAME,true);
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics[8].statics);
+                                                sort(&mut vector, SortTarget::NAME, true);
                                                 vector
-                                            }
+                                            },
                                         },
-                                        GeneralStaticsTemplate{
+                                        GeneralStaticsTemplate {
                                             name: "アイテム使用".to_string(),
                                             statics: {
-                                                let mut vector= hashmap_to_vec(&statics[9].statics);
-                                                sort(&mut vector,SortTarget::NAME,true);
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics[9].statics);
+                                                sort(&mut vector, SortTarget::NAME, true);
                                                 vector
-                                            }
+                                            },
                                         },
-                                    ]
+                                    ],
                                 };
                                 ctx.render_once().unwrap()
                             };
-
+                            //侵入した状態で最後のフロアゲートの起動よりクリアのほうがあとならば報酬を受け取っていると判定できる.
+                            //ここまでの統計をファイルに書き出す
+                            //ダンジョンからの退出処理を行う
                             if (LAST_CLEAR > LAST_FLOOR_GATE) & ENTERED {
                                 // dump current try
                                 // generate file name and create
@@ -769,11 +798,14 @@ fn make_response(
                                 if !Path::new("./dungeon_statics").exists() {
                                     std::fs::create_dir("./dungeon_statics");
                                 }
-                                let file_name = format!("./dungeon_statics/{}@{}_{}.html", stem, LAST_FLOOR_GATE, LAST_CLEAR);
+                                let file_name = format!(
+                                    "./dungeon_statics/{}@{}_{}.html",
+                                    stem, LAST_FLOOR_GATE, LAST_CLEAR
+                                );
                                 println!("write to  {}", file_name);
                                 let mut file = std::fs::File::create(file_name).unwrap();
 
-                                let table=write_statics(statics);
+                                let table = write_statics(statics);
                                 file.write_all(table.as_bytes()).unwrap();
                                 file.flush().unwrap();
                                 //
@@ -783,28 +815,36 @@ fn make_response(
                                 statics[8].blank();
                                 statics[9].blank();
                             }
-
+                            //侵入した状態ならば統計の更新処理を行う
                             if ENTERED {
                                 println!("Rewrite");
-                                statics[6].rewrite_statics(engine_item_get(&texts, LAST_FLOOR_GATE));
-                                statics[7].rewrite_statics(engine_get_part(&texts, LAST_FLOOR_GATE));
-                                statics[8].rewrite_statics(engine_kill_self(&texts, LAST_FLOOR_GATE));
-                                statics[9].rewrite_statics(engine_item_use(&texts, LAST_FLOOR_GATE));
+                                statics[6]
+                                    .rewrite_statics(engine_item_get(&texts, LAST_FLOOR_GATE));
+                                statics[7]
+                                    .rewrite_statics(engine_get_part(&texts, LAST_FLOOR_GATE));
+                                statics[8]
+                                    .rewrite_statics(engine_kill_self(&texts, LAST_FLOOR_GATE));
+                                statics[9]
+                                    .rewrite_statics(engine_item_use(&texts, LAST_FLOOR_GATE));
                                 DONE_LINE = Some(texts.len());
                             }
-                            println!("ENTERED: {} DONE_LINE: {} LAST_FLOOR_GATE: {} LAST_CLEAR: {}", ENTERED, DONE_LINE.unwrap(), LAST_FLOOR_GATE, LAST_CLEAR);
-                            let table=write_statics(statics);
+                            println!(
+                                "ENTERED: {} DONE_LINE: {} LAST_FLOOR_GATE: {} LAST_CLEAR: {}",
+                                ENTERED,
+                                DONE_LINE.unwrap(),
+                                LAST_FLOOR_GATE,
+                                LAST_CLEAR
+                            );
+                            let table = write_statics(statics);
                             table.into_bytes()
-                        }
+                        },
 
                         "./floor" => {
                             let (last, texts) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(last);
                             let from = search_floor(&texts, 0);
                             match from {
-                                None => {
-                                    Vec::from(include_str!("not_entered.html"))
-                                }
+                                None => Vec::from(include_str!("not_entered.html")),
                                 Some(from) => {
                                     let mut lds = Vec::new();
                                     lds.push(engine_item_get(&texts, from));
@@ -812,49 +852,50 @@ fn make_response(
                                     lds.push(engine_item_use(&texts, from));
                                     lds.push(engine_kill_self(&texts, from));
 
-                                    let ctx=InFloorStaticsTemplate{ name: "フロア内カウント".to_string(),
+                                    let ctx = InFloorStaticsTemplate {
+                                        name: "フロア内カウント".to_string(),
                                         set_of_statics: vec![
-                                            GeneralStaticsTemplate{
+                                            GeneralStaticsTemplate {
                                                 name: "アイテム取得".to_string(),
                                                 statics: {
-                                                    let mut  vector= hashmap_to_vec(&lds[0]);
-                                                    sort(&mut vector,SortTarget::NAME,true);
+                                                    let mut vector = hashmap_to_vec(&lds[0]);
+                                                    sort(&mut vector, SortTarget::NAME, true);
                                                     vector
-                                                }
+                                                },
                                             },
-                                            GeneralStaticsTemplate{
+                                            GeneralStaticsTemplate {
                                                 name: "パーツ取得".to_string(),
                                                 statics: {
-                                                    let mut  vector= hashmap_to_vec(&lds[1]);
-                                                    sort(&mut vector,SortTarget::NAME,true);
+                                                    let mut vector = hashmap_to_vec(&lds[1]);
+                                                    sort(&mut vector, SortTarget::NAME, true);
                                                     vector
-                                                }
+                                                },
                                             },
-                                            GeneralStaticsTemplate{
+                                            GeneralStaticsTemplate {
                                                 name: "キル".to_string(),
                                                 statics: {
-                                                    let mut  vector= hashmap_to_vec(&lds[2]);
-                                                    sort(&mut vector,SortTarget::NAME,true);
+                                                    let mut vector = hashmap_to_vec(&lds[2]);
+                                                    sort(&mut vector, SortTarget::NAME, true);
                                                     vector
-                                                }
+                                                },
                                             },
-                                            GeneralStaticsTemplate{
+                                            GeneralStaticsTemplate {
                                                 name: "アイテム使用".to_string(),
                                                 statics: {
-                                                    let mut vector= hashmap_to_vec(&lds[3]);
-                                                    sort(&mut vector,SortTarget::NAME,true);
+                                                    let mut vector = hashmap_to_vec(&lds[3]);
+                                                    sort(&mut vector, SortTarget::NAME, true);
                                                     vector
-                                                }
+                                                },
                                             },
-                                        ]
+                                        ],
                                     };
-                                    let table=ctx.render_once().unwrap();
+                                    let table = ctx.render_once().unwrap();
                                     table.into_bytes()
                                 }
                             }
                         }
 
-                        _ =>Vec::from( include_str!("not_found.html")),
+                        _ => Vec::from(include_str!("not_found.html")),
                     }
                 }
             }

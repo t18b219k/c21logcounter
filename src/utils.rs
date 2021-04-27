@@ -7,7 +7,10 @@ use encoding::all::WINDOWS_31J;
 use encoding::DecoderTrap;
 use encoding::Encoding;
 
-use crate::engines::{engine_get_info, engine_get_text, engine_get_text2, engine_get_text3, InnerStatics, DungeonRewardElement, add_to_table};
+use crate::engines::{
+    add_to_table, engine_get_info, engine_get_text, engine_get_text2, engine_get_text3,
+    DungeonRewardElement, InnerStatics,
+};
 
 pub enum SortTarget {
     NAME,
@@ -39,36 +42,26 @@ pub(crate) fn sort_drs(
     invert: bool,
 ) {
     match target {
-        SortTarget::NAME => {
-            match invert {
-                true => match rs {
-                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp(&b.0).reverse()),
-                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp(&b.0).reverse()),
-                },
-                false => match rs {
-                    RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp(&b.0)),
-                    RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp(&b.0)),
-                },
-            }
-        }
+        SortTarget::NAME => match invert {
+            true => match rs {
+                RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp(&b.0).reverse()),
+                RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp(&b.0).reverse()),
+            },
+            false => match rs {
+                RewardSort::Sell => vec.sort_by(|a, b| (a.0).cmp(&b.0)),
+                RewardSort::Reward => vec.sort_by(|a, b| (a.0).cmp(&b.0)),
+            },
+        },
         SortTarget::QTY => {
             if invert {
                 match rs {
-                    RewardSort::Sell => {
-                        vec.sort_by(|a, b| a.1.1.cmp(&b.1.1).reverse())
-                    }
-                    RewardSort::Reward => {
-                        vec.sort_by(|a, b| a.1.0.cmp(&b.1.0).reverse())
-                    }
+                    RewardSort::Sell => vec.sort_by(|a, b| a.1 .1.cmp(&b.1 .1).reverse()),
+                    RewardSort::Reward => vec.sort_by(|a, b| a.1 .0.cmp(&b.1 .0).reverse()),
                 }
             } else {
                 match rs {
-                    RewardSort::Sell => {
-                        vec.sort_by(|a, b| a.1.1.cmp(&b.1.1))
-                    }
-                    RewardSort::Reward => {
-                        vec.sort_by(|a, b| a.1.0.cmp(&b.1.0))
-                    }
+                    RewardSort::Sell => vec.sort_by(|a, b| a.1 .1.cmp(&b.1 .1)),
+                    RewardSort::Reward => vec.sort_by(|a, b| a.1 .0.cmp(&b.1 .0)),
                 }
             }
         }
@@ -132,7 +125,9 @@ pub fn hashmap_to_vec(map: &InnerStatics) -> Vec<(String, isize)> {
     vector
 }
 
-pub(crate) fn hashmap_to_vec_drs(map: &HashMap<String, DungeonRewardElement>) -> Vec<(String, DungeonRewardElement)> {
+pub(crate) fn hashmap_to_vec_drs(
+    map: &HashMap<String, DungeonRewardElement>,
+) -> Vec<(String, DungeonRewardElement)> {
     let mut vector = Vec::new();
     if !map.is_empty() {
         for (key, val) in map.iter() {

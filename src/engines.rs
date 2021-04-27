@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use regex::{Captures, Regex};
-use std::ops::{Add};
+use std::ops::Add;
 
 pub type InnerStatics = HashMap<String, isize>;
 
@@ -42,7 +42,11 @@ pub fn engine_gacha(texts: &[String], from: usize) -> InnerStatics {
     table
 }
 
-pub(crate) fn add_to_table<V: Add + Copy + std::ops::Add<Output=V>>(table: &mut HashMap<String, V>, key: impl ToString, value: V) {
+pub(crate) fn add_to_table<V: Add + Copy + std::ops::Add<Output = V>>(
+    table: &mut HashMap<String, V>,
+    key: impl ToString,
+    value: V,
+) {
     let key = key.to_string();
     match table.get_mut(&key) {
         None => {
@@ -85,7 +89,10 @@ pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
 //this is not normal format
 //so i use dedicated format
 // (reward,sells)
-pub(crate) fn engine_reward_dungeon(texts: &[String], from: usize) -> HashMap<String, DungeonRewardElement> {
+pub(crate) fn engine_reward_dungeon(
+    texts: &[String],
+    from: usize,
+) -> HashMap<String, DungeonRewardElement> {
     lazy_static! {
     //	報酬－ ENパック2000 x 1
     static ref RE2:Regex=Regex::new(r"報酬－ (?P<name>.+) x (?P<N>\d+)").unwrap();
@@ -223,11 +230,11 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
     table
 }
 
-//フロアゲートの起動を探す.(last)
+///フロアゲートの起動を探す.(last)
 pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
     let mut floor = None;
-    if search_from>last{
+    if search_from > last {
         return None;
     }
     for (offset, text) in texts[search_from..last].iter().enumerate() {
@@ -239,7 +246,7 @@ pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
     floor
 }
 
-//フロアゲートの起動を探す.(first)
+///フロアゲートの起動を探す.(first)
 pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
     lazy_static! {
@@ -253,7 +260,7 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
     None
 }
 
-//ダンジョンクリア(last)
+///ダンジョンクリア(last)
 pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usize> {
     //ダンジョン成功報酬
     let last = texts.len();

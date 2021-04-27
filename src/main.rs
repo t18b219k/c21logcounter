@@ -59,6 +59,7 @@ mod engines;
 mod mesa_inject;
 mod process_manager;
 mod setting;
+mod statics_address;
 mod utils;
 
 #[derive(Clone)]
@@ -207,10 +208,10 @@ impl Statics {
     }
 }
 
-struct DungeonSave {
-    last_gate: Option<usize>,
+struct DungeonContext {
+    last_gate: usize,
     entered: bool,
-    last_clear: Option<usize>,
+    last_clear: usize,
     done_line: Option<usize>,
 }
 
@@ -223,10 +224,11 @@ struct GlobalDataShare {
     log_cache: HashMap<String, Vec<String>>,
     general_statics: Vec<HashMap<String, isize>>,
     dungeon_reward_statics: HashMap<String, DungeonRewardElement>,
-    dungeon_save: DungeonSave,
+    dungeon_save: DungeonContext,
     current_updating_file: String,
 }
 
+use crate::statics_address::StaticsAddress;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Mutex;
 
@@ -261,10 +263,10 @@ fn load_chat_to_gds(config: Setting) -> GlobalDataShare {
         log_cache: Default::default(),
         general_statics: vec![],
         dungeon_reward_statics: Default::default(),
-        dungeon_save: DungeonSave {
-            last_gate: None,
+        dungeon_save: DungeonContext {
+            last_gate: 0,
             entered: false,
-            last_clear: None,
+            last_clear: 0,
             done_line: None,
         },
         current_updating_file: last.0,
@@ -272,15 +274,20 @@ fn load_chat_to_gds(config: Setting) -> GlobalDataShare {
 }
 
 fn main() {
-    //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle dungeon_reward
-    //0     1     2   3    4    5          6           7           8             9       10     11       12     13         14
+    //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle
+    //0     1     2   3    4    5          6           7           8             9       10     11       12     13
     let mut statics = vec![Statics::new(); 14];
     let mut dungeon_reward_statics = DungeonRewardStatics::new();
     let config_text = fs::read_to_string("Settings.toml");
     let mut config: Option<Setting> = None;
     let mut launcher: Option<Sender<ProcessRequest>> = None;
     let mut port = 7878;
-
+    let mut dungeon_context = DungeonContext {
+        last_gate: 0,
+        entered: false,
+        last_clear: 9,
+        done_line: None,
+    };
     if let Ok(config_text) = config_text {
         config = toml::from_str(&config_text).ok();
         launcher.replace(construct_launcher(config.clone().unwrap().base_path));
@@ -304,6 +311,7 @@ fn main() {
                     &mut statics,
                     &mut dungeon_reward_statics,
                     &mut launcher,
+                    &mut dungeon_context,
                 );
                 stream.write(&response);
             }
@@ -369,7 +377,7 @@ fn search_latest_log_file<P: AsRef<Path>>(chat_dir_path: P) -> (String, Vec<Stri
                 let path = path.to_string();
                 let update = std::fs::metadata(&path).unwrap();
                 let update = update.modified().unwrap();
-
+                #[cfg(debug_assertions)]
                 println!("{},{:#?}", path, update);
                 paths.push((path, update));
             }
@@ -391,6 +399,7 @@ fn make_response(
     statics: &mut [Statics],
     drs: &mut DungeonRewardStatics,
     launcher: &mut Option<Sender<ProcessRequest>>,
+    dungeon_context: &mut DungeonContext,
 ) -> Vec<u8> {
     if let Some(ref mut config) = config {
         // process query
@@ -398,12 +407,14 @@ fn make_response(
             match query.0.as_ref() {
                 "generate_config" => {
                     if let Ok(setting) = get_path_from_launcher() {
+                        #[cfg(debug_assertions)]
                         println!("Setting generated");
                         let config_file_content = toml::to_string(&setting).unwrap();
                         std::fs::write("./Settings.toml", config_file_content);
                     }
                 }
                 "inject_mesa" => {
+                    #[cfg(debug_assertions)]
                     println!("Injecting mesa");
                     let mut programs_path = config.base_path.clone();
                     programs_path.push_str("programs");
@@ -447,6 +458,7 @@ fn make_response(
             }
         }
         let file = File::open(&request.uri);
+        #[cfg(debug_assertions)]
         println!("request:{:#?}", request);
         let mut header = Vec::from("HTTP/1.1 200 OK\r\n\r\n");
         lazy_static! {
@@ -474,7 +486,7 @@ fn make_response(
                     eprintln!("{}", err);
                     let uri = request.uri;
                     match uri.as_str() {
-                        //RTLCの機能はCGIとして実装
+                        //機能はCGIとして実装
                         "./dungeon_reward" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let need_to_load = drs.query_cache(&paths);
@@ -482,6 +494,7 @@ fn make_response(
                             let (tx, rx) = std::sync::mpsc::channel();
                             let tx = Arc::new(Mutex::new(tx));
                             let ntl = need_to_load.clone();
+                            #[cfg(debug_assertions)]
                             println!("{:#?}", ntl);
 
                             for path in ntl {
@@ -495,6 +508,7 @@ fn make_response(
                             }
                             if !need_to_load.is_empty() {
                                 for (id, rcv) in rx.iter().enumerate() {
+                                    #[cfg(debug_assertions)]
                                     println!("id: {}, len: {}", id + 1, need_to_load.len());
                                     if id + 1 == need_to_load.len() {
                                         break;
@@ -520,227 +534,153 @@ fn make_response(
                         "./items" | "./parts" | "./kills" | "./labo" | "./use" | "./gacha"
                         | "./dungeon_clear" | "./burst" | "./mission" | "./shuttle" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
-                            //ここはuriによってふるまいをかえる
-                            let need_to_load = match uri.as_str() {
-                                "./items" => statics[0].query_cache(&paths),
-                                "./parts" => statics[1].query_cache(&paths),
-                                "./kills" => statics[2].query_cache(&paths),
-                                "./labo" => statics[3].query_cache(&paths),
-                                "./use" => statics[4].query_cache(&paths),
-                                "./gacha" => statics[5].query_cache(&paths),
-
-                                "./burst" => statics[10].query_cache(&paths),
-                                "./dungeon_clear" => statics[11].query_cache(&paths),
-                                "./mission" => statics[12].query_cache(&paths),
-                                "./shuttle" => statics[13].query_cache(&paths),
-                                _ => statics[0].query_cache(&paths),
-                            };
-
+                            let statics_address = StaticsAddress::from_url(uri.as_str()).unwrap();
+                            let need_to_load =
+                                statics[statics_address.as_uint()].query_cache(&paths);
                             //更新が必要なものをリストアップ
 
                             use std::sync::Arc;
                             let (tx, rx) = std::sync::mpsc::channel();
                             let tx = Arc::new(Mutex::new(tx));
                             let ntl = need_to_load.clone();
+                            #[cfg(debug_assertions)]
                             println!("{:#?}", ntl);
 
                             for path in ntl {
                                 use std::thread;
                                 let tx = tx.clone();
                                 let uri = uri.clone();
-                                thread::spawn(move || {
-                                    match uri.as_str() {
-                                        "./items" => {
-                                            let texts = read_from_file(path);
-                                            let data = engine_item_get(&texts, 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./parts" => {
-                                            let texts = read_from_file(path);
-                                            let data = engine_get_part(&texts, 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./kills" => {
-                                            let texts = read_from_file(path);
-                                            let data = engine_kill_self(&texts, 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./labo" => {
-                                            let texts = read_from_file2(path);
-                                            let data = engine_labo(&texts, 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./use" => {
-                                            let texts = read_from_file(path);
-                                            let data = engine_item_use(&texts, 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./gacha" => {
-                                            let texts = read_from_file(path);
-                                            let data = engine_gacha(&texts, 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./burst" => {
-                                            let texts = read_from_file3(path);
-                                            let data =
-                                                engine_tsv_match(&texts, &DICTIONARIES[0], 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./dungeon_clear" => {
-                                            let texts = read_from_file3(path);
-                                            let data =
-                                                engine_tsv_match(&texts, &DICTIONARIES[1], 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./mission" => {
-                                            let texts = read_from_file3(path);
-                                            let data =
-                                                engine_tsv_match(&texts, &DICTIONARIES[2], 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        "./shuttle" => {
-                                            let texts = read_from_file3(path);
-                                            let data =
-                                                engine_tsv_match(&texts, &DICTIONARIES[3], 0);
-                                            tx.lock().unwrap().send(data);
-                                        }
-                                        _ => {}
-                                    };
+                                thread::spawn(move || match statics_address {
+                                    StaticsAddress::Item => {
+                                        let texts = read_from_file(path);
+                                        let data = engine_item_get(&texts, 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    StaticsAddress::ItemUse => {
+                                        let texts = read_from_file(path);
+                                        let data = engine_item_use(&texts, 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    StaticsAddress::Parts => {
+                                        let texts = read_from_file(path);
+                                        let data = engine_get_part(&texts, 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    StaticsAddress::Kill => {
+                                        let texts = read_from_file(path);
+                                        let data = engine_kill_self(&texts, 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    StaticsAddress::Burst|
+                                    StaticsAddress::Mission|
+                                    StaticsAddress::DungeonClear|
+                                    StaticsAddress::Shuttle => {
+                                        let texts = read_from_file3(path);
+                                        let data = engine_tsv_match(&texts, &DICTIONARIES[statics_address.as_dictionary_index().unwrap()], 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    StaticsAddress::Lab => {
+                                        let texts = read_from_file2(path);
+                                        let data = engine_labo(&texts, 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    StaticsAddress::Gacha => {
+                                        let texts = read_from_file(path);
+                                        let data = engine_gacha(&texts, 0);
+                                        tx.lock().unwrap().send(data);
+                                    }
+                                    _ => {}
                                 });
                             }
                             if !need_to_load.is_empty() {
                                 for (id, rcv) in rx.iter().enumerate() {
+                                    #[cfg(debug_assertions)]
                                     println!("id: {}, len: {}", id + 1, need_to_load.len());
                                     if id + 1 == need_to_load.len() {
                                         break;
                                     }
-                                    match uri.as_str() {
-                                        "./items" => {
-                                            statics[0].update_statics(rcv);
-                                        }
-                                        "./parts" => {
-                                            statics[1].update_statics(rcv);
-                                        }
-                                        "./kills" => {
-                                            statics[2].update_statics(rcv);
-                                        }
-                                        "./labo" => {
-                                            statics[3].update_statics(rcv);
-                                        }
-                                        "./use" => {
-                                            statics[4].update_statics(rcv);
-                                        }
-                                        "./gacha" => {
-                                            statics[5].update_statics(rcv);
-                                        }
-                                        "./burst" => {
-                                            statics[10].update_statics(rcv);
-                                        }
-                                        "./dungeon_clear" => {
-                                            statics[11].update_statics(rcv);
-                                        }
-                                        "./mission" => {
-                                            statics[12].update_statics(rcv);
-                                        }
-                                        "./shuttle" => {
-                                            statics[13].update_statics(rcv);
-                                        }
-                                        _ => {}
-                                    }
+                                    statics[statics_address.as_uint()].update_statics(rcv);
                                 }
                             }
-                            let (items, lds) = match uri.as_str() {
-                                "./items" => {
+                            let items = statics[statics_address.as_uint()].get_statics();
+                            let updating = match statics_address {
+                                StaticsAddress::Item => {
                                     let texts = read_from_file(last);
-                                    (statics[0].get_statics(), engine_item_get(&texts, 0))
+                                    engine_item_get(&texts, 0)
                                 }
-                                "./parts" => {
+                                StaticsAddress::ItemUse => {
                                     let texts = read_from_file(last);
-                                    (statics[1].get_statics(), engine_get_part(&texts, 0))
+                                    engine_item_use(&texts, 0)
                                 }
-                                "./kills" => {
+                                StaticsAddress::Parts => {
                                     let texts = read_from_file(last);
-                                    (statics[2].get_statics(), engine_kill_self(&texts, 0))
+                                    engine_get_part(&texts, 0)
                                 }
-                                "./labo" => {
+                                StaticsAddress::Kill => {
+                                    let texts = read_from_file(last);
+                                    engine_kill_self(&texts, 0)
+                                }
+                                StaticsAddress::Burst
+                                | StaticsAddress::Mission
+                                | StaticsAddress::DungeonClear
+                                | StaticsAddress::Shuttle => {
+                                    let texts = read_from_file3(last);
+                                    engine_tsv_match(
+                                        &texts,
+                                        &DICTIONARIES
+                                            [statics_address.as_dictionary_index().unwrap()],
+                                        0,
+                                    )
+                                }
+                                StaticsAddress::Lab => {
                                     let texts = read_from_file2(last);
-                                    (statics[3].get_statics(), engine_labo(&texts, 0))
+                                    engine_labo(&texts, 0)
                                 }
-                                "./use" => {
+                                StaticsAddress::Gacha => {
                                     let texts = read_from_file(last);
-                                    (statics[4].get_statics(), engine_item_use(&texts, 0))
-                                }
-                                "./gacha" => {
-                                    let texts = read_from_file(last);
-                                    (statics[5].get_statics(), engine_gacha(&texts, 0))
-                                }
-                                "./burst" => {
-                                    let texts = read_from_file3(last);
-                                    (
-                                        statics[10].get_statics(),
-                                        engine_tsv_match(&texts, &DICTIONARIES[0], 0),
-                                    )
-                                }
-                                "./dungeon_clear" => {
-                                    let texts = read_from_file3(last);
-                                    (
-                                        statics[11].get_statics(),
-                                        engine_tsv_match(&texts, &DICTIONARIES[1], 0),
-                                    )
-                                }
-                                "./mission" => {
-                                    let texts = read_from_file3(last);
-                                    (
-                                        statics[12].get_statics(),
-                                        engine_tsv_match(&texts, &DICTIONARIES[2], 0),
-                                    )
-                                }
-                                "./shuttle" => {
-                                    let texts = read_from_file3(last);
-                                    (
-                                        statics[13].get_statics(),
-                                        engine_tsv_match(&texts, &DICTIONARIES[3], 0),
-                                    )
+                                    engine_gacha(&texts, 0)
                                 }
                                 _ => {
-                                    let texts = read_from_file(last);
-                                    (statics[0].get_statics(), engine_item_get(&texts, 0))
+                                    unreachable!()
                                 }
                             };
+
                             //ITEMSとLDSを統合して出力
-                            let set = connect_hashmap(items, lds);
+                            let set = connect_hashmap(items, updating);
                             let mut vector = hashmap_to_vec(&set);
                             sort(&mut vector, SortTarget::NAME, true);
                             let ctx = GeneralStaticsTemplate {
-                                name: "".to_string(),
+                                name: statics_address.to_string(),
                                 statics: vector,
                             };
                             ctx.render_once().unwrap().into_bytes()
                         }
-                        "./dungeon" => unsafe {
-                            static mut ENTERED: bool = false;
-                            static mut LAST_FLOOR_GATE: usize = 0;
-                            static mut LAST_CLEAR: usize = 0;
-                            static mut DONE_LINE: Option<usize> = None;
+                        "./dungeon" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(&last);
                             //どこまでのテキストを処理したか記録する
-                            if DONE_LINE.is_none() {
-                                DONE_LINE = Some(texts.len());
-                            }
-                            let from = search_floor(&texts, DONE_LINE.unwrap());
-                            let last_clear_stack = search_dungeon_clear(&texts, DONE_LINE.unwrap());
-                            //ダンジョン侵入判定
-                            //侵入してない状態で最新のダンジョンクリアよりフロアゲートの起動があとならば侵入したと判定する
-                            if (last_clear_stack < from) & !ENTERED {
-                                ENTERED = true;
-                                LAST_FLOOR_GATE = from.unwrap();
+                            if dungeon_context.done_line.is_none() {
+                                dungeon_context.done_line = Some(texts.len());
                             }
 
-                            match last_clear_stack {
-                                None => {}
-                                Some(line) => LAST_CLEAR = line,
+                            let from = search_floor(&texts, dungeon_context.done_line.unwrap_or(0));
+
+                            let last_clear_stack = search_dungeon_clear(
+                                &texts,
+                                dungeon_context.done_line.unwrap_or(0),
+                            );
+                            //ダンジョン侵入判定
+                            //侵入してない状態で最新のダンジョンクリアよりフロアゲートの起動があとならば侵入したと判定する
+                            if (last_clear_stack < from) & !dungeon_context.entered {
+                                dungeon_context.entered = true;
+                                dungeon_context.last_gate = from.unwrap();
                             }
+
+                            //LAST_CLEARをlast_clear_stackがSomeならば更新する
+                            if let Some(line) = last_clear_stack {
+                                dungeon_context.last_clear = line;
+                            }
+                            //write_statics 関数の定義
                             let write_statics = |statics: &mut [Statics]| -> String {
                                 let ctx = InFloorStaticsTemplate {
                                     name: "ダンジョン内カウント".to_string(),
@@ -788,9 +728,9 @@ fn make_response(
                             //侵入した状態で最後のフロアゲートの起動よりクリアのほうがあとならば報酬を受け取っていると判定できる.
                             //ここまでの統計をファイルに書き出す
                             //ダンジョンからの退出処理を行う
-                            if (LAST_CLEAR > LAST_FLOOR_GATE) & ENTERED {
-                                // dump current try
-                                // generate file name and create
+                            if (dungeon_context.last_clear > dungeon_context.last_gate)
+                                & dungeon_context.entered
+                            {
                                 let path = Path::new(&last);
                                 let stem = path.file_stem().unwrap();
                                 let stem = stem.to_str().unwrap();
@@ -800,44 +740,48 @@ fn make_response(
                                 }
                                 let file_name = format!(
                                     "./dungeon_statics/{}@{}_{}.html",
-                                    stem, LAST_FLOOR_GATE, LAST_CLEAR
+                                    stem, dungeon_context.last_gate, dungeon_context.last_clear
                                 );
+
+                                #[cfg(debug_assertions)]
                                 println!("write to  {}", file_name);
                                 let mut file = std::fs::File::create(file_name).unwrap();
 
                                 let table = write_statics(statics);
                                 file.write_all(table.as_bytes()).unwrap();
                                 file.flush().unwrap();
-                                //
-                                ENTERED = false;
+                                dungeon_context.entered = false;
                                 statics[6].blank();
                                 statics[7].blank();
                                 statics[8].blank();
                                 statics[9].blank();
                             }
                             //侵入した状態ならば統計の更新処理を行う
-                            if ENTERED {
+                            if dungeon_context.entered {
+                                #[cfg(debug_assertions)]
                                 println!("Rewrite");
+                                let last_floor_gate = dungeon_context.last_gate;
                                 statics[6]
-                                    .rewrite_statics(engine_item_get(&texts, LAST_FLOOR_GATE));
+                                    .rewrite_statics(engine_item_get(&texts, last_floor_gate));
                                 statics[7]
-                                    .rewrite_statics(engine_get_part(&texts, LAST_FLOOR_GATE));
+                                    .rewrite_statics(engine_get_part(&texts, last_floor_gate));
                                 statics[8]
-                                    .rewrite_statics(engine_kill_self(&texts, LAST_FLOOR_GATE));
+                                    .rewrite_statics(engine_kill_self(&texts, last_floor_gate));
                                 statics[9]
-                                    .rewrite_statics(engine_item_use(&texts, LAST_FLOOR_GATE));
-                                DONE_LINE = Some(texts.len());
+                                    .rewrite_statics(engine_item_use(&texts, last_floor_gate));
+                                dungeon_context.done_line = Some(texts.len());
                             }
+                            #[cfg(debug_assertions)]
                             println!(
-                                "ENTERED: {} DONE_LINE: {} LAST_FLOOR_GATE: {} LAST_CLEAR: {}",
-                                ENTERED,
-                                DONE_LINE.unwrap(),
-                                LAST_FLOOR_GATE,
-                                LAST_CLEAR
+                                "entered: {} done_line: {} last_floor_gate: {}  last_clear: {}",
+                                dungeon_context.entered,
+                                dungeon_context.done_line.unwrap(),
+                                dungeon_context.last_gate,
+                                dungeon_context.last_clear
                             );
                             let table = write_statics(statics);
                             table.into_bytes()
-                        },
+                        }
 
                         "./floor" => {
                             let (last, texts) = search_latest_log_file(chat_dir_path);
@@ -872,7 +816,7 @@ fn make_response(
                                                 },
                                             },
                                             GeneralStaticsTemplate {
-                                                name: "キル".to_string(),
+                                                name: "アイテム使用".to_string(),
                                                 statics: {
                                                     let mut vector = hashmap_to_vec(&lds[2]);
                                                     sort(&mut vector, SortTarget::NAME, true);
@@ -880,7 +824,7 @@ fn make_response(
                                                 },
                                             },
                                             GeneralStaticsTemplate {
-                                                name: "アイテム使用".to_string(),
+                                                name: "キル".to_string(),
                                                 statics: {
                                                     let mut vector = hashmap_to_vec(&lds[3]);
                                                     sort(&mut vector, SortTarget::NAME, true);
@@ -912,13 +856,16 @@ fn make_response(
         match get_path_from_launcher() {
             Ok(setting) => {
                 //write setting
+                #[cfg(debug_assertions)]
                 println!("Setting generated");
                 let config_file_content = toml::to_string(&setting).unwrap();
                 std::fs::write("./Settings.toml", config_file_content);
                 //config.replace(setting);
                 let mut old_position = Some(setting);
                 std::mem::swap(config, &mut old_position);
+                #[cfg(debug_assertions)]
                 println!("{:#?}", old_position);
+                #[cfg(debug_assertions)]
                 println!("{:#?}", config);
                 let mut config_not_found_page = File::open("config_not_found.html").unwrap();
                 config_not_found_page.read_to_end(&mut buffer);

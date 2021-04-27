@@ -2,4 +2,4 @@ function reload() {
     location.reload(true);
 }
 
-setTimeout(reload, 30000);
+setTimeout(reload, 3000);

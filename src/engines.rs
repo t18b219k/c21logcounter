@@ -109,6 +109,7 @@ pub(crate) fn engine_reward_dungeon(
                 add_to_table(&mut table, name, cell);
             }
             None => {
+                #[cfg(debug_assertions)]
                 println!("{}", &text)
             }
         }
@@ -120,6 +121,7 @@ pub(crate) fn engine_reward_dungeon(
                 add_to_table(&mut table, name, cell);
             }
             None => {
+                #[cfg(debug_assertions)]
                 println!("{}", &text)
             }
         }
@@ -171,6 +173,7 @@ pub fn engine_labo(texts: &[String], from: usize) -> InnerStatics {
                     (name, num)
                 }
             };
+            #[cfg(debug_assertions)]
             println!("{}:{}", k, val);
             add_to_table(&mut table, k, val);
         }
@@ -238,6 +241,7 @@ pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
         return None;
     }
     for (offset, text) in texts[search_from..last].iter().enumerate() {
+        #[cfg(debug_assertions)]
         println!("offset {} ", offset);
         if text.contains("がフロアゲートを起動した！") {
             floor = Some(search_from + offset);
@@ -252,6 +256,9 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(?P<name>.+?)がフロアゲートを起動した！").unwrap();
     }
+    if search_from > last {
+        return None;
+    }
     for (offset, text) in texts[search_from..last].iter().enumerate() {
         if RE.captures(text).is_some() {
             return Some(offset + search_from);
@@ -264,6 +271,9 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
 pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usize> {
     //ダンジョン成功報酬
     let last = texts.len();
+    if search_from > last {
+        return None;
+    }
     for (offset, text) in texts[search_from..last].iter().enumerate() {
         if text.contains(r"ダンジョン成功報酬") {
             return Some(search_from + offset);

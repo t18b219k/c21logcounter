@@ -13,6 +13,7 @@ pub struct Setting {
 pub enum GetPathError {
     ProcessNotFound,
 }
+
 //プロセステーブルを検索してパスを取ってくる.
 fn search_process() -> Option<String> {
     let s = System::new_all();
@@ -25,6 +26,7 @@ fn search_process() -> Option<String> {
     }
     None
 }
+
 pub fn get_path_from_launcher() -> Result<Setting, GetPathError> {
     let executable = search_process();
     let executable = if let Some(exec) = executable {
@@ -34,7 +36,7 @@ pub fn get_path_from_launcher() -> Result<Setting, GetPathError> {
     };
     //generate wine prefix
     #[cfg(not(target_os = "windows"))]
-    let drive_c = {
+        let drive_c = {
         let wine_prefix = std::env::var("WINEPREFIX").ok();
         let wine_prefix = wine_prefix.unwrap_or_else(|| "~/.wine/".to_string());
         let wine_prefix = wine_prefix.replace("~", &std::env::var("HOME").unwrap());
@@ -44,13 +46,13 @@ pub fn get_path_from_launcher() -> Result<Setting, GetPathError> {
     };
     let executable = {
         #[cfg(not(target_os = "windows"))]
-        {
-            executable.replace("C:\\", &drive_c)
-        }
+            {
+                executable.replace("C:\\", &drive_c)
+            }
         #[cfg(target_os = "windows")]
-        {
-            executable
-        }
+            {
+                executable
+            }
     };
     let executable = executable.replace('\\', "/");
     let file_name_chunks: Vec<&str> = executable.split('/').collect();
@@ -68,6 +70,7 @@ pub fn get_path_from_launcher() -> Result<Setting, GetPathError> {
     println!("{:#?}", setting);
     Ok(setting)
 }
+
 #[test]
 fn test_get_path() {
     get_path_from_launcher();

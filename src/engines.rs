@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use regex::{Captures, Regex};
-use std::ops::{ Add};
+use std::ops::{Add};
 
 pub type InnerStatics = HashMap<String, isize>;
 
@@ -31,35 +31,38 @@ pub fn engine_gacha(texts: &[String], from: usize) -> InnerStatics {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"\[(?P<name>.+)] が当たりました！").unwrap();
     }
-    let mut table:HashMap<String,isize> = HashMap::new();
+    let mut table: HashMap<String, isize> = HashMap::new();
     let last = texts.len();
     for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
-            add_to_table(&mut table,name,1);
+            add_to_table(&mut table, name, 1);
         }
     }
     table
 }
-pub(crate)fn add_to_table<V:Add+Copy+ std::ops::Add<Output = V>>(table:&mut HashMap<String,V>, key:impl ToString, value:V) {
-    let key =key.to_string();
+
+pub(crate) fn add_to_table<V: Add + Copy + std::ops::Add<Output=V>>(table: &mut HashMap<String, V>, key: impl ToString, value: V) {
+    let key = key.to_string();
     match table.get_mut(&key) {
         None => {
-            table.insert(key,value);
+            table.insert(key, value);
         }
         Some(old) => {
-            *old=*old+value;
+            *old = *old + value;
         }
     }
 }
-#[derive(Copy, Clone,Eq, PartialEq,Hash)]
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 ///(reward,sell)
 pub(crate) struct DungeonRewardElement(pub(crate) isize, pub(crate) isize);
-impl Add for DungeonRewardElement{
+
+impl Add for DungeonRewardElement {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0+rhs.0,self.1+rhs.1)
+        Self(self.0 + rhs.0, self.1 + rhs.1)
     }
 }
 
@@ -73,11 +76,12 @@ pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
     for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
-            add_to_table(&mut table,name,1);
+            add_to_table(&mut table, name, 1);
         }
     }
     table
 }
+
 //this is not normal format
 //so i use dedicated format
 // (reward,sells)
@@ -94,8 +98,8 @@ pub(crate) fn engine_reward_dungeon(texts: &[String], from: usize) -> HashMap<St
             Some(caps) => {
                 let name = caps.name("name").unwrap().as_str();
                 let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-                let cell=DungeonRewardElement(num,0);
-                add_to_table(&mut table,name,cell);
+                let cell = DungeonRewardElement(num, 0);
+                add_to_table(&mut table, name, cell);
             }
             None => {
                 println!("{}", &text)
@@ -105,8 +109,8 @@ pub(crate) fn engine_reward_dungeon(texts: &[String], from: usize) -> HashMap<St
             Some(caps) => {
                 let name = caps.name("name").unwrap().as_str();
                 let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-                let cell=DungeonRewardElement(0,num);
-                add_to_table(&mut table,name,cell);
+                let cell = DungeonRewardElement(0, num);
+                add_to_table(&mut table, name, cell);
             }
             None => {
                 println!("{}", &text)
@@ -126,7 +130,7 @@ pub fn engine_rare(texts: &[String], from: usize) -> InnerStatics {
     for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
-            add_to_table(&mut table,name,1);
+            add_to_table(&mut table, name, 1);
         }
     }
     table
@@ -161,7 +165,7 @@ pub fn engine_labo(texts: &[String], from: usize) -> InnerStatics {
                 }
             };
             println!("{}:{}", k, val);
-            add_to_table(&mut table,k,val);
+            add_to_table(&mut table, k, val);
         }
     }
     table
@@ -182,7 +186,7 @@ pub fn engine_tsv_match(
         text.remove(0);
         let name = dictionary.get(&text);
         if let Some(name) = name {
-            add_to_table(&mut table,name,1);
+            add_to_table(&mut table, name, 1);
         }
     }
     table
@@ -198,7 +202,7 @@ pub fn engine_item_get(texts: &[String], from: usize) -> InnerStatics {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
             let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-            add_to_table(&mut table,name,num);
+            add_to_table(&mut table, name, num);
         }
     }
     table
@@ -213,7 +217,7 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
     for text in &texts[from..last] {
         if let Some(caps) = RE.captures(&text) {
             let name = caps.name("name").unwrap().as_str();
-            add_to_table(&mut table ,name,1);
+            add_to_table(&mut table, name, 1);
         }
     }
     table
@@ -223,6 +227,9 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
 pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
     let mut floor = None;
+    if search_from>last{
+        return None;
+    }
     for (offset, text) in texts[search_from..last].iter().enumerate() {
         println!("offset {} ", offset);
         if text.contains("がフロアゲートを起動した！") {

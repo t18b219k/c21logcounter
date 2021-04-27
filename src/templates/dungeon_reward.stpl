@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title><%= name %></title>
-    <script src="reload.js" ></script>
+    <script src="reload.js"></script>
     <link href="./style.css" rel="stylesheet" type="text/css">
 </head>
 <body>

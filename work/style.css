@@ -1,7 +1,8 @@
-body{
+body {
     margin: 0;
 }
+
 div.hbox {
-float: left;
-padding-right: 20px;
+    float: left;
+    padding-right: 20px;
 }

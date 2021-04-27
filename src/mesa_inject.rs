@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::path::Path;
+
 /// download mesa from github and install
 pub fn inject_mesa<P: AsRef<Path>>(path: P) {
     let urls = [
@@ -19,6 +20,7 @@ pub fn inject_mesa<P: AsRef<Path>>(path: P) {
         file.flush().unwrap();
     }
 }
+
 #[test]
 fn inject_test() {
     let path = "/home/rustacean/.wine/drive_c/CyberStep/C21/programs";

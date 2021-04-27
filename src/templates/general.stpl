@@ -9,8 +9,11 @@
 <body>
 <h4><%= name %></h4>
 <table border="1" bordercolor="#333333" cellpadding="5" cellspacing="0">
-<tr><th>名前</th><th>個数</th></tr>
-<% for element in & statics{ %>
+    <tr>
+        <th>名前</th>
+        <th>個数</th>
+    </tr>
+    <% for element in & statics{ %>
     <tr>
         <td><%= element.0 %></td>
         <td><%= element.1 %></td>

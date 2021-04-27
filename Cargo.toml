@@ -11,10 +11,10 @@ regex = "*"
 toml = "*"
 lazy_static = "*"
 encoding = "*"
-serde = {version="*",features=["derive"]}
+serde = { version = "*", features = ["derive"] }
 sysinfo = "*"
 ureq = "*"
 webbrowser = "*"
 actix = "*"
-actix-web="*"
-sailfish="*"
+actix-web = "*"
+sailfish = "*"

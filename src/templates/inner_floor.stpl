@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=\"UTF-8\">
+    <link href="./style.css" rel="stylesheet" type="text/css">
+    <title> <%= name %></title>
+    <script src="./reload.js"></script>
+</head>
+<body>
+<h1><%= name %></h1>
+<% for statics in set_of_statics { %>
+<div class="hbox">
+    <table border="1" width="200" cellspacing="0" cellpadding="5" bordercolor="#333333">
+
+        <caption><%= statics.name %></caption>
+
+        <tr>
+            <th>名前</th>
+            <th>個数</th>
+        </tr>
+    <% for element in statics.statics { %>
+        <tr>
+            <td><%=element.0 %></td>
+            <td><%=element.1 %></td>
+        </tr>
+        <% } %>
+    </table>
+</div>
+<% } %>
+</body>
+</html>

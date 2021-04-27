@@ -11,22 +11,24 @@ pub enum ProcessRequest {
     KillStageEditor,
     LaunchStageEditor,
 }
+
 //start launcher
 pub fn update(setting: &Setting) -> Option<Child> {
     #[cfg(not(windows))]
-    let process = Command::new("wine")
+        let process = Command::new("wine")
         .current_dir(&setting.base_path)
         .arg(&setting.launcher_name)
         .spawn()
         .ok();
 
     #[cfg(windows)]
-    let process = Command::new(&setting.launcher_name)
+        let process = Command::new(&setting.launcher_name)
         .current_dir(&setting.base_path)
         .spawn()
         .ok();
     process
 }
+
 //create launcher
 pub fn construct_launcher<P: AsRef<Path> + Send + 'static>(path: P) -> Sender<ProcessRequest> {
     let (tx, rx) = std::sync::mpsc::channel();
@@ -87,6 +89,7 @@ pub fn construct_launcher<P: AsRef<Path> + Send + 'static>(path: P) -> Sender<Pr
 
     tx
 }
+
 #[cfg(test)]
 mod process_manager_test {
     use std::time::Duration;

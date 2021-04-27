@@ -35,18 +35,19 @@
     </div>
 </section>
 
-    <iframe id="counter" name="counter" src="dungeon" style="height: 240px" >
-        ブラウザのアップデートが必要です
-    </iframe>
+<iframe id="counter" name="counter" src="dungeon" style="height: 240px">
+    ブラウザのアップデートが必要です
+</iframe>
 
 <script>    // 子画面の要素を取得
 const elm = document.getElementById("counter");
 
 // 子画面のコンテンツサイズに合わせてサイズを変更する関数
-function changeParentHeight(){
+function changeParentHeight() {
     elm.style.height = elm.contentWindow.document.getElementsByTagName("html").item(0).scrollHeight + "px";
 }
-elm.onload=changeParentHeight;
+
+elm.onload = changeParentHeight;
 </script>
 
 

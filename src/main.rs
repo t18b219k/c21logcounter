@@ -88,7 +88,7 @@ struct HttpRequest<'a> {
     queries: Vec<(Cow<'a, str>, Option<Cow<'a, str>>)>,
     version: f32,
 }
-
+#[derive(Default)]
 struct DungeonRewardStatics {
     cache_list: HashSet<String>,
     statics: HashMap<String, DungeonRewardElement>,
@@ -222,8 +222,8 @@ struct DungeonContext {
 struct GlobalDataShare {
     config: Setting,
     log_cache: HashMap<String, Vec<String>>,
-    general_statics: Vec<HashMap<String, isize>>,
-    dungeon_reward_statics: HashMap<String, DungeonRewardElement>,
+    general_statics: Vec<Statics>,
+    dungeon_reward_statics: DungeonRewardStatics,
     dungeon_save: DungeonContext,
     current_updating_file: String,
 }
@@ -261,7 +261,7 @@ fn load_chat_to_gds(config: Setting) -> GlobalDataShare {
     GlobalDataShare {
         config,
         log_cache: Default::default(),
-        general_statics: vec![],
+        general_statics: vec![Statics::new(); 14],
         dungeon_reward_statics: Default::default(),
         dungeon_save: DungeonContext {
             last_gate: 0,
@@ -571,12 +571,17 @@ fn make_response(
                                         let data = engine_kill_self(&texts, 0);
                                         tx.lock().unwrap().send(data);
                                     }
-                                    StaticsAddress::Burst|
-                                    StaticsAddress::Mission|
-                                    StaticsAddress::DungeonClear|
-                                    StaticsAddress::Shuttle => {
+                                    StaticsAddress::Burst
+                                    | StaticsAddress::Mission
+                                    | StaticsAddress::DungeonClear
+                                    | StaticsAddress::Shuttle => {
                                         let texts = read_from_file3(path);
-                                        let data = engine_tsv_match(&texts, &DICTIONARIES[statics_address.as_dictionary_index().unwrap()], 0);
+                                        let data = engine_tsv_match(
+                                            &texts,
+                                            &DICTIONARIES
+                                                [statics_address.as_dictionary_index().unwrap()],
+                                            0,
+                                        );
                                         tx.lock().unwrap().send(data);
                                     }
                                     StaticsAddress::Lab => {
@@ -658,10 +663,14 @@ fn make_response(
                         "./dungeon" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(&last);
-                            //どこまでのテキストを処理したか記録する
-                            if dungeon_context.done_line.is_none() {
-                                dungeon_context.done_line = Some(texts.len());
-                            }
+
+                            /*
+                                                      if dungeon_context.done_line.is_none() {
+                                                          dungeon_context.done_line = Some(texts.len());
+                                                      }else if  let Some(ref done_line ) =dungeon_context.done_line{
+                                                          done_line.
+                                                      }
+                            */
 
                             let from = search_floor(&texts, dungeon_context.done_line.unwrap_or(0));
 
@@ -689,7 +698,7 @@ fn make_response(
                                             name: "アイテム取得".to_string(),
                                             statics: {
                                                 let mut vector =
-                                                    hashmap_to_vec(&statics[6].statics);
+                                                    hashmap_to_vec(&statics[StaticsAddress::ItemDungeon.as_uint()].statics);
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -698,7 +707,7 @@ fn make_response(
                                             name: "パーツ取得".to_string(),
                                             statics: {
                                                 let mut vector =
-                                                    hashmap_to_vec(&statics[7].statics);
+                                                    hashmap_to_vec(&statics[StaticsAddress::PartDungeon.as_uint()].statics);
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -707,7 +716,7 @@ fn make_response(
                                             name: "キル".to_string(),
                                             statics: {
                                                 let mut vector =
-                                                    hashmap_to_vec(&statics[8].statics);
+                                                    hashmap_to_vec(&statics[StaticsAddress::KillDungeon.as_uint()].statics);
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -716,7 +725,7 @@ fn make_response(
                                             name: "アイテム使用".to_string(),
                                             statics: {
                                                 let mut vector =
-                                                    hashmap_to_vec(&statics[9].statics);
+                                                    hashmap_to_vec(&statics[StaticsAddress::ItemUseDungeon.as_uint()].statics);
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -751,35 +760,39 @@ fn make_response(
                                 file.write_all(table.as_bytes()).unwrap();
                                 file.flush().unwrap();
                                 dungeon_context.entered = false;
-                                statics[6].blank();
-                                statics[7].blank();
-                                statics[8].blank();
-                                statics[9].blank();
+                                statics[StaticsAddress::ItemDungeon.as_uint()].blank();
+                                statics[StaticsAddress::ItemUseDungeon.as_uint()].blank();
+                                statics[StaticsAddress::PartDungeon.as_uint()].blank();
+                                statics[StaticsAddress::KillDungeon.as_uint()].blank();
                             }
                             //侵入した状態ならば統計の更新処理を行う
                             if dungeon_context.entered {
                                 #[cfg(debug_assertions)]
                                 println!("Rewrite");
-                                let last_floor_gate = dungeon_context.last_gate;
-                                statics[6]
-                                    .rewrite_statics(engine_item_get(&texts, last_floor_gate));
-                                statics[7]
-                                    .rewrite_statics(engine_get_part(&texts, last_floor_gate));
-                                statics[8]
-                                    .rewrite_statics(engine_kill_self(&texts, last_floor_gate));
-                                statics[9]
-                                    .rewrite_statics(engine_item_use(&texts, last_floor_gate));
-                                dungeon_context.done_line = Some(texts.len());
+
+                                if let Some(done_line)=dungeon_context.done_line {
+                                    statics[StaticsAddress::ItemDungeon.as_uint()]
+                                        .update_statics(engine_item_get(&texts, done_line));
+                                    statics[StaticsAddress::PartDungeon.as_uint()]
+                                        .update_statics(engine_get_part(&texts, done_line));
+                                    statics[StaticsAddress::KillDungeon.as_uint()]
+                                        .update_statics(engine_kill_self(&texts, done_line));
+                                    statics[StaticsAddress::ItemUseDungeon.as_uint()]
+                                        .update_statics(engine_item_use(&texts, done_line));
+                                    dungeon_context.done_line = Some(texts.len());
+                                }
                             }
                             #[cfg(debug_assertions)]
                             println!(
-                                "entered: {} done_line: {} last_floor_gate: {}  last_clear: {}",
+                                "entered: {} done_line: {:?} last_floor_gate: {}  last_clear: {}",
                                 dungeon_context.entered,
-                                dungeon_context.done_line.unwrap(),
+                                dungeon_context.done_line,
                                 dungeon_context.last_gate,
                                 dungeon_context.last_clear
                             );
                             let table = write_statics(statics);
+                            //どこまでのテキストを処理したか記録する
+                            dungeon_context.done_line.replace(texts.len());
                             table.into_bytes()
                         }
 

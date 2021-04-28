@@ -11,7 +11,7 @@ pub fn engine_kill_self(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -36,7 +36,7 @@ pub fn engine_gacha(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table: HashMap<String, isize> = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -83,7 +83,7 @@ pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -109,7 +109,7 @@ pub(crate) fn engine_reward_dungeon(
     }
     let mut table: HashMap<String, DungeonRewardElement> = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -148,7 +148,7 @@ pub fn engine_rare(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -172,7 +172,7 @@ pub fn engine_labo(texts: &[String], from: usize) -> InnerStatics {
         }
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -206,7 +206,7 @@ pub fn engine_tsv_match(
 ) -> InnerStatics {
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -229,7 +229,7 @@ pub fn engine_item_get(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {
@@ -248,7 +248,7 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
     }
     let mut table = HashMap::new();
     let last = texts.len();
-    if from>last{
+    if from > last {
         return table;
     }
     for text in &texts[from..last] {

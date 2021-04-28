@@ -219,82 +219,48 @@ struct DungeonContext {
 /// and configs
 /// logs are splatted to each line
 
-struct GlobalDataShare {
-    config: Setting,
+struct Context {
+    config: Option<Setting>,
+    launcher: Option<Sender<ProcessRequest>>,
     log_cache: HashMap<String, Vec<String>>,
     general_statics: Vec<Statics>,
     dungeon_reward_statics: DungeonRewardStatics,
     dungeon_save: DungeonContext,
     current_updating_file: String,
+    port: u16,
 }
 
 use crate::statics_address::StaticsAddress;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Mutex;
 
-fn load_chat_to_gds(config: Setting) -> GlobalDataShare {
-    let mut chat_path = config.base_path.clone();
-    chat_path.push_str("chat/");
-    let chat_dir_path = Path::new(&chat_path);
-    let mut paths = Vec::new();
-    let c21_chat_file_list = fs::read_dir(chat_dir_path).unwrap();
-    for dir_entry in c21_chat_file_list {
-        match dir_entry {
-            Ok(dir_entry) => {
-                let path = dir_entry.path();
-                let path = path.to_str().unwrap();
-                let path = path.to_string();
-                let update = std::fs::metadata(&path).unwrap();
-                let update = update.modified().unwrap();
-
-                paths.push((path, update));
-            }
-            Err(error) => {
-                eprintln!("{}", error)
-            }
-        }
-    }
-    paths.sort_by(|a, b| a.1.cmp(&b.1));
-
-    let last = paths.pop().unwrap(); //最新
-
-    GlobalDataShare {
-        config,
+fn main() {
+    let config_text = fs::read_to_string("Settings.toml");
+    let mut context = Context {
+        config: None,
+        launcher: None,
         log_cache: Default::default(),
         general_statics: vec![Statics::new(); 14],
-        dungeon_reward_statics: Default::default(),
+        dungeon_reward_statics:Default::default(),
         dungeon_save: DungeonContext {
             last_gate: 0,
             entered: false,
             last_clear: 0,
             done_line: None,
         },
-        current_updating_file: last.0,
-    }
-}
-
-fn main() {
-    //item part kill labo use gacha dungeon_item dungeon_part dungeon_kill dungeon_use burst dungeon mission shuttle
-    //0     1     2   3    4    5          6           7           8             9       10     11       12     13
-    let mut statics = vec![Statics::new(); 14];
-    let mut dungeon_reward_statics = DungeonRewardStatics::new();
-    let config_text = fs::read_to_string("Settings.toml");
-    let mut config: Option<Setting> = None;
-    let mut launcher: Option<Sender<ProcessRequest>> = None;
-    let mut port = 7878;
-    let mut dungeon_context = DungeonContext {
-        last_gate: 0,
-        entered: false,
-        last_clear: 9,
-        done_line: None,
+        current_updating_file: "".to_string(),
+        port: 7878,
     };
+    //設定読み込み
     if let Ok(config_text) = config_text {
-        config = toml::from_str(&config_text).ok();
-        launcher.replace(construct_launcher(config.clone().unwrap().base_path));
-        port = config.as_ref().unwrap().port;
+        context.config = toml::from_str(&config_text).ok();
+        context.launcher.replace(construct_launcher(
+            context.config.clone().unwrap().base_path,
+        ));
+        context.port = context.config.as_ref().unwrap().port;
     }
-    let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port)).unwrap();
-    webbrowser::open(&format!("http://localhost:{}/", port));
+    let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), context.port)).unwrap();
+    webbrowser::open(&format!("http://localhost:{}/", context.port));
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
         let mut buffer = [0; 1024];
@@ -305,14 +271,7 @@ fn main() {
         match request {
             None => {}
             Some(request) => {
-                let response = make_response(
-                    &mut config.clone(),
-                    request,
-                    &mut statics,
-                    &mut dungeon_reward_statics,
-                    &mut launcher,
-                    &mut dungeon_context,
-                );
+                let response = make_response(request, &mut context);
                 stream.write(&response);
             }
         }
@@ -393,15 +352,8 @@ fn search_latest_log_file<P: AsRef<Path>>(chat_dir_path: P) -> (String, Vec<Stri
 }
 
 //Httpレスポンスを作成
-fn make_response(
-    config: &mut Option<Setting>,
-    request: HttpRequest,
-    statics: &mut [Statics],
-    drs: &mut DungeonRewardStatics,
-    launcher: &mut Option<Sender<ProcessRequest>>,
-    dungeon_context: &mut DungeonContext,
-) -> Vec<u8> {
-    if let Some(ref mut config) = config {
+fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
+    if let Some(ref mut config) = context.config {
         // process query
         if let Some(query) = request.queries.get(0) {
             match query.0.as_ref() {
@@ -424,28 +376,28 @@ fn make_response(
                     let _process = update(config);
                 }
                 "launch_cosmic" => {
-                    if let Some(ref sender) = launcher {
+                    if let Some(ref mut sender) = context.launcher {
                         sender
                             .send(ProcessRequest::LaunchMain)
                             .expect("Failed to send launch message");
                     }
                 }
                 "kill_cosmic" => {
-                    if let Some(ref sender) = launcher {
+                    if let Some(ref mut sender) = context.launcher {
                         sender
                             .send(ProcessRequest::KillMain)
                             .expect("Failed to send kill message");
                     }
                 }
                 "launch_stage_editor" => {
-                    if let Some(ref sender) = launcher {
+                    if let Some(ref mut sender) = context.launcher {
                         sender
                             .send(ProcessRequest::LaunchStageEditor)
                             .expect("Failed to send kill message");
                     }
                 }
                 "kill_stage_editor" => {
-                    if let Some(ref sender) = launcher {
+                    if let Some(ref mut sender) = context.launcher {
                         sender
                             .send(ProcessRequest::KillStageEditor)
                             .expect("Failed to send kill message");
@@ -489,7 +441,7 @@ fn make_response(
                         //機能はCGIとして実装
                         "./dungeon_reward" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
-                            let need_to_load = drs.query_cache(&paths);
+                            let need_to_load = context.dungeon_reward_statics.query_cache(&paths);
                             use std::sync::Arc;
                             let (tx, rx) = std::sync::mpsc::channel();
                             let tx = Arc::new(Mutex::new(tx));
@@ -513,12 +465,12 @@ fn make_response(
                                     if id + 1 == need_to_load.len() {
                                         break;
                                     }
-                                    drs.update_statics(rcv);
+                                    context.dungeon_reward_statics.update_statics(rcv);
                                 }
                             }
                             let (items, lds) = {
                                 let texts = read_from_file(last);
-                                (drs.get_statics(), engine_reward_dungeon(&texts, 0))
+                                (context.dungeon_reward_statics.get_statics(), engine_reward_dungeon(&texts, 0))
                             };
                             let set = connect_hashmap_drs(items, lds);
                             let mut vector = hashmap_to_vec_drs(&set);
@@ -536,7 +488,7 @@ fn make_response(
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let statics_address = StaticsAddress::from_url(uri.as_str()).unwrap();
                             let need_to_load =
-                                statics[statics_address.as_uint()].query_cache(&paths);
+                                context.general_statics[statics_address.as_uint()].query_cache(&paths);
                             //更新が必要なものをリストアップ
 
                             use std::sync::Arc;
@@ -604,10 +556,10 @@ fn make_response(
                                     if id + 1 == need_to_load.len() {
                                         break;
                                     }
-                                    statics[statics_address.as_uint()].update_statics(rcv);
+                                    context.general_statics[statics_address.as_uint()].update_statics(rcv);
                                 }
                             }
-                            let items = statics[statics_address.as_uint()].get_statics();
+                            let items = context.general_statics[statics_address.as_uint()].get_statics();
                             let updating = match statics_address {
                                 StaticsAddress::Item => {
                                     let texts = read_from_file(last);
@@ -663,42 +615,35 @@ fn make_response(
                         "./dungeon" => {
                             let (last, paths) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(&last);
-
-                            /*
-                                                      if dungeon_context.done_line.is_none() {
-                                                          dungeon_context.done_line = Some(texts.len());
-                                                      }else if  let Some(ref done_line ) =dungeon_context.done_line{
-                                                          done_line.
-                                                      }
-                            */
-
-                            let from = search_floor(&texts, dungeon_context.done_line.unwrap_or(0));
+                            let from = search_floor(&texts, context.dungeon_save.done_line.unwrap_or(0));
 
                             let last_clear_stack = search_dungeon_clear(
                                 &texts,
-                                dungeon_context.done_line.unwrap_or(0),
+                                context.dungeon_save.done_line.unwrap_or(0),
                             );
                             //ダンジョン侵入判定
                             //侵入してない状態で最新のダンジョンクリアよりフロアゲートの起動があとならば侵入したと判定する
-                            if (last_clear_stack < from) & !dungeon_context.entered {
-                                dungeon_context.entered = true;
-                                dungeon_context.last_gate = from.unwrap();
+                            if (last_clear_stack < from) & !context.dungeon_save.entered {
+                                context.dungeon_save.entered = true;
+                                context.dungeon_save.last_gate = from.unwrap();
                             }
 
                             //LAST_CLEARをlast_clear_stackがSomeならば更新する
                             if let Some(line) = last_clear_stack {
-                                dungeon_context.last_clear = line;
+                                context.dungeon_save.last_clear = line;
                             }
                             //write_statics 関数の定義
-                            let write_statics = |statics: &mut [Statics]| -> String {
+                            let write_statics = |statics: &[Statics]| -> String {
                                 let ctx = InFloorStaticsTemplate {
                                     name: "ダンジョン内カウント".to_string(),
                                     set_of_statics: vec![
                                         GeneralStaticsTemplate {
                                             name: "アイテム取得".to_string(),
                                             statics: {
-                                                let mut vector =
-                                                    hashmap_to_vec(&statics[StaticsAddress::ItemDungeon.as_uint()].statics);
+                                                let mut vector = hashmap_to_vec(
+                                                    &statics[StaticsAddress::ItemDungeon.as_uint()]
+                                                        .statics,
+                                                );
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -706,8 +651,10 @@ fn make_response(
                                         GeneralStaticsTemplate {
                                             name: "パーツ取得".to_string(),
                                             statics: {
-                                                let mut vector =
-                                                    hashmap_to_vec(&statics[StaticsAddress::PartDungeon.as_uint()].statics);
+                                                let mut vector = hashmap_to_vec(
+                                                    &statics[StaticsAddress::PartDungeon.as_uint()]
+                                                        .statics,
+                                                );
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -715,8 +662,10 @@ fn make_response(
                                         GeneralStaticsTemplate {
                                             name: "キル".to_string(),
                                             statics: {
-                                                let mut vector =
-                                                    hashmap_to_vec(&statics[StaticsAddress::KillDungeon.as_uint()].statics);
+                                                let mut vector = hashmap_to_vec(
+                                                    &statics[StaticsAddress::KillDungeon.as_uint()]
+                                                        .statics,
+                                                );
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -724,8 +673,11 @@ fn make_response(
                                         GeneralStaticsTemplate {
                                             name: "アイテム使用".to_string(),
                                             statics: {
-                                                let mut vector =
-                                                    hashmap_to_vec(&statics[StaticsAddress::ItemUseDungeon.as_uint()].statics);
+                                                let mut vector = hashmap_to_vec(
+                                                    &statics
+                                                        [StaticsAddress::ItemUseDungeon.as_uint()]
+                                                    .statics,
+                                                );
                                                 sort(&mut vector, SortTarget::NAME, true);
                                                 vector
                                             },
@@ -734,11 +686,29 @@ fn make_response(
                                 };
                                 ctx.render_once().unwrap()
                             };
+
+                            //侵入した状態ならば統計の更新処理を行う
+                            if context.dungeon_save.entered {
+                                #[cfg(debug_assertions)]
+                                println!("Rewrite");
+
+                                if let Some(done_line) = context.dungeon_save.done_line {
+                                    context.general_statics[StaticsAddress::ItemDungeon.as_uint()]
+                                        .update_statics(engine_item_get(&texts, done_line));
+                                    context.general_statics[StaticsAddress::PartDungeon.as_uint()]
+                                        .update_statics(engine_get_part(&texts, done_line));
+                                    context.general_statics[StaticsAddress::KillDungeon.as_uint()]
+                                        .update_statics(engine_kill_self(&texts, done_line));
+                                    context.general_statics[StaticsAddress::ItemUseDungeon.as_uint()]
+                                        .update_statics(engine_item_use(&texts, done_line));
+                                    context.dungeon_save.done_line = Some(texts.len());
+                                }
+                            }
                             //侵入した状態で最後のフロアゲートの起動よりクリアのほうがあとならば報酬を受け取っていると判定できる.
                             //ここまでの統計をファイルに書き出す
                             //ダンジョンからの退出処理を行う
-                            if (dungeon_context.last_clear > dungeon_context.last_gate)
-                                & dungeon_context.entered
+                            if (context.dungeon_save.last_clear > context.dungeon_save.last_gate)
+                                & context.dungeon_save.entered
                             {
                                 let path = Path::new(&last);
                                 let stem = path.file_stem().unwrap();
@@ -749,50 +719,33 @@ fn make_response(
                                 }
                                 let file_name = format!(
                                     "./dungeon_statics/{}@{}_{}.html",
-                                    stem, dungeon_context.last_gate, dungeon_context.last_clear
+                                    stem, context.dungeon_save.last_gate, context.dungeon_save.last_clear
                                 );
 
                                 #[cfg(debug_assertions)]
                                 println!("write to  {}", file_name);
                                 let mut file = std::fs::File::create(file_name).unwrap();
 
-                                let table = write_statics(statics);
+                                let table = write_statics(&context.general_statics);
                                 file.write_all(table.as_bytes()).unwrap();
                                 file.flush().unwrap();
-                                dungeon_context.entered = false;
-                                statics[StaticsAddress::ItemDungeon.as_uint()].blank();
-                                statics[StaticsAddress::ItemUseDungeon.as_uint()].blank();
-                                statics[StaticsAddress::PartDungeon.as_uint()].blank();
-                                statics[StaticsAddress::KillDungeon.as_uint()].blank();
-                            }
-                            //侵入した状態ならば統計の更新処理を行う
-                            if dungeon_context.entered {
-                                #[cfg(debug_assertions)]
-                                println!("Rewrite");
-
-                                if let Some(done_line)=dungeon_context.done_line {
-                                    statics[StaticsAddress::ItemDungeon.as_uint()]
-                                        .update_statics(engine_item_get(&texts, done_line));
-                                    statics[StaticsAddress::PartDungeon.as_uint()]
-                                        .update_statics(engine_get_part(&texts, done_line));
-                                    statics[StaticsAddress::KillDungeon.as_uint()]
-                                        .update_statics(engine_kill_self(&texts, done_line));
-                                    statics[StaticsAddress::ItemUseDungeon.as_uint()]
-                                        .update_statics(engine_item_use(&texts, done_line));
-                                    dungeon_context.done_line = Some(texts.len());
-                                }
+                                context.dungeon_save.entered = false;
+                                context.general_statics[StaticsAddress::ItemDungeon.as_uint()].blank();
+                                context.general_statics[StaticsAddress::ItemUseDungeon.as_uint()].blank();
+                                context.general_statics[StaticsAddress::PartDungeon.as_uint()].blank();
+                                context.general_statics[StaticsAddress::KillDungeon.as_uint()].blank();
                             }
                             #[cfg(debug_assertions)]
                             println!(
                                 "entered: {} done_line: {:?} last_floor_gate: {}  last_clear: {}",
-                                dungeon_context.entered,
-                                dungeon_context.done_line,
-                                dungeon_context.last_gate,
-                                dungeon_context.last_clear
+                                context.dungeon_save.entered,
+                                context.dungeon_save.done_line,
+                                context.dungeon_save.last_gate,
+                                context.dungeon_save.last_clear
                             );
-                            let table = write_statics(statics);
+                            let table = write_statics(& context.general_statics);
                             //どこまでのテキストを処理したか記録する
-                            dungeon_context.done_line.replace(texts.len());
+                            context.dungeon_save.done_line.replace(texts.len());
                             table.into_bytes()
                         }
 
@@ -875,11 +828,11 @@ fn make_response(
                 std::fs::write("./Settings.toml", config_file_content);
                 //config.replace(setting);
                 let mut old_position = Some(setting);
-                std::mem::swap(config, &mut old_position);
+                std::mem::swap(&mut context.config, &mut old_position);
                 #[cfg(debug_assertions)]
                 println!("{:#?}", old_position);
                 #[cfg(debug_assertions)]
-                println!("{:#?}", config);
+                println!("{:#?}", context.config);
                 let mut config_not_found_page = File::open("config_not_found.html").unwrap();
                 config_not_found_page.read_to_end(&mut buffer);
             }

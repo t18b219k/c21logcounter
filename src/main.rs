@@ -128,27 +128,8 @@ impl Statics {
             }
         }
     }
-    fn rewrite_statics(&mut self, data: InnerStatics) {
-        self.statics = data;
-    }
-    fn set_last(&mut self, last: usize) {
-        self.last = last;
-    }
-    fn get_last(&self) -> usize {
-        self.last
-    }
-    fn blank(&mut self) {
-        self.statics.clear();
-    }
 }
 
-struct DungeonContext {
-    last_gate: usize,
-    entered: bool,
-    last_clear: usize,
-    done_line: Option<usize>,
-    log_starvation: bool,
-}
 
 /// contain all statics log contents
 /// and configs
@@ -189,7 +170,7 @@ fn main() {
     }
     let listener =
         TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), context.port)).unwrap();
-    webbrowser::open(&format!("http://localhost:{}/", context.port));
+    webbrowser::open(&format!("http://localhost:{}/", context.port)).expect("cant not open browser");
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
         let mut buffer = [0; 1024];
@@ -201,7 +182,8 @@ fn main() {
             None => {}
             Some(request) => {
                 let response = make_response(request, &mut context);
-                stream.write(&response);
+                stream.write_all(&response).unwrap();
+                stream.flush().unwrap();
             }
         }
     }
@@ -303,7 +285,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                 //ファイルが存在
                 Ok(mut file) => {
                     let mut buf = Vec::with_capacity(4096);
-                    file.read_to_end(&mut buf);
+                    file.read_to_end(&mut buf).unwrap();
                     buf
                 }
                 //存在しない
@@ -330,7 +312,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                 thread::spawn(move || {
                                     let texts = read_from_file(&path);
                                     let data = engine_reward_dungeon(&texts.1, 0);
-                                    tx.lock().unwrap().send(data);
+                                    tx.lock().unwrap().send(data).unwrap();
                                 });
                             }
                             if !need_to_load.is_empty() {
@@ -393,7 +375,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                             println!("Setting generated");
                                             let config_file_content =
                                                 toml::to_string(&setting).unwrap();
-                                            std::fs::write("./Settings.toml", config_file_content);
+                                            std::fs::write("./Settings.toml", config_file_content).unwrap();
                                             Vec::from(include_str!("generated_config.html"))
                                         } else {
                                             Vec::from(include_str!("blank.html"))
@@ -470,27 +452,27 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             for path in ntl {
                                 use std::thread;
                                 let tx = tx.clone();
-                                let uri = uri.clone();
+                                let _uri = uri.clone();
                                 thread::spawn(move || match statics_address {
                                     StaticsAddress::Item => {
                                         let texts = read_from_file(path);
                                         let data = engine_item_get(&texts.1, 0);
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     StaticsAddress::ItemUse => {
                                         let texts = read_from_file(path);
                                         let data = engine_item_use(&texts.1, 0);
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     StaticsAddress::Parts => {
                                         let texts = read_from_file(path);
                                         let data = engine_get_part(&texts.1, 0);
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     StaticsAddress::Kill => {
                                         let texts = read_from_file(path);
                                         let data = engine_kill_self(&texts.1, 0);
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     StaticsAddress::Burst
                                     | StaticsAddress::Mission
@@ -503,17 +485,17 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                                 [statics_address.as_dictionary_index().unwrap()],
                                             0,
                                         );
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     StaticsAddress::Lab => {
                                         let texts = read_from_file2(path);
                                         let data = engine_labo(&texts, 0);
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     StaticsAddress::Gacha => {
                                         let texts = read_from_file(path);
                                         let data = engine_gacha(&texts.1, 0);
-                                        tx.lock().unwrap().send(data);
+                                        tx.lock().unwrap().send(data).unwrap();
                                     }
                                     _ => {}
                                 });
@@ -584,7 +566,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             ctx.render_once().unwrap().into_bytes()
                         }
                         "./dungeon" => {
-                            let (last, paths) = search_latest_log_file(chat_dir_path);
+                            let (last, _paths) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(&last);
                             //if updating file changed reset state machine
                             if context.current_updating_file != last {
@@ -676,7 +658,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                     let stem = stem.to_str().unwrap();
 
                                     if !Path::new("./dungeon_statics").exists() {
-                                        std::fs::create_dir("./dungeon_statics");
+                                        std::fs::create_dir("./dungeon_statics").unwrap();
                                     }
                                     let file_name = format!(
                                         "./dungeon_statics/{}@{}_{}.html",
@@ -684,9 +666,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                     );
                                     let mut file = std::fs::File::create(file_name).unwrap();
 
-                                    if std::fs::read_dir("./dungeon_statics").is_err() {
-                                        std::fs::create_dir("./dungeon_statics");
-                                    }
+
                                     file.write_all(&bytes).unwrap();
                                     file.flush().unwrap();
                                 }
@@ -698,7 +678,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                         }
 
                         "./floor" => {
-                            let (last, texts) = search_latest_log_file(chat_dir_path);
+                            let (last, _texts) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(last);
                             let from = search_floor_last(&texts.1, 0);
                             match from {
@@ -773,7 +753,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                 #[cfg(debug_assertions)]
                 println!("Setting generated");
                 let config_file_content = toml::to_string(&setting).unwrap();
-                std::fs::write("./Settings.toml", config_file_content);
+                std::fs::write("./Settings.toml", config_file_content).unwrap();
                 //config.replace(setting);
                 let mut old_position = Some(setting);
                 std::mem::swap(&mut context.config, &mut old_position);
@@ -782,12 +762,12 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                 #[cfg(debug_assertions)]
                 println!("{:#?}", context.config);
                 let mut config_not_found_page = File::open("config_not_found.html").unwrap();
-                config_not_found_page.read_to_end(&mut buffer);
+                config_not_found_page.read_to_end(&mut buffer).unwrap();
             }
             Err(_) => {
                 let mut please_start_launcher_page =
                     File::open("please_start_launcher.html").unwrap();
-                please_start_launcher_page.read_to_end(&mut buffer);
+                please_start_launcher_page.read_to_end(&mut buffer).unwrap();
             }
         }
 

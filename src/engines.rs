@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset, ParseResult};
+use chrono::{DateTime, FixedOffset};
 use regex::{Captures, Regex};
 use std::collections::HashMap;
 use std::ops::Add;
@@ -387,16 +387,18 @@ pub fn search_dungeon_clear_last(texts: &[String], search_from: usize) -> Option
     }
     clear
 }
-pub fn engine_get_text(text: &str) -> Vec<String> {
+pub fn engine_get_text(text: &str) ->(Vec<DateTime<FixedOffset>>, Vec<String>) {
     let mut texts = vec![];
+    let mut times= vec![];
     lazy_static! {
         static ref RE: Regex =
-            Regex::new(r"\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2}	\[INFO]	(?P<text>.+)").unwrap();
+            Regex::new(r"(?P<time>\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2})\t\[INFO]	(?P<text>.+)").unwrap();
     }
     for caps in RE.captures_iter(text) {
         texts.push("\t".to_string() + caps.name("text").unwrap().as_str());
+        times.push(    DateTime::parse_from_str(    caps.name("time").unwrap().as_str(), "%Y-%m-%d%t%H:%M:%S").unwrap());
     }
-    texts
+    (times,texts)
 }
 
 pub fn engine_get_text3(text: &str) -> Vec<String> {
@@ -446,19 +448,4 @@ pub fn engine_get_info(texts: Vec<String>) -> Vec<String> {
         }
     }
     vec
-}
-
-pub fn get_time(text: &str) -> ParseResult<DateTime<FixedOffset>> {
-    lazy_static! {
-        static ref RE: Regex =
-            Regex::new(r"(?P<time>\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2})\t\[INFO]\t(?P<text>.+)")
-                .unwrap();
-    }
-    let captures = RE.captures(text);
-    let time_text = match captures {
-        None => "No time stamp".to_string(),
-        Some(caps) => caps.name("time").unwrap().as_str().to_string(),
-    };
-
-    DateTime::parse_from_str(&time_text, "%Y-%m-%d%t%H:%M:%S")
 }

@@ -11,6 +11,7 @@ use crate::engines::{
     add_to_table, engine_get_info, engine_get_text, engine_get_text2, engine_get_text3,
     DungeonRewardElement, InnerStatics,
 };
+use chrono::{DateTime, FixedOffset};
 
 pub enum SortTarget {
     NAME,
@@ -35,7 +36,7 @@ pub fn sort(vec: &mut Vec<(String, isize)>, target: SortTarget, invert: bool) {
     }
 }
 
-pub fn read_from_file<P: AsRef<Path>>(path: P) -> Vec<String> {
+pub fn read_from_file<P: AsRef<Path>>(path: P) ->( Vec<DateTime<FixedOffset>>,Vec<String>) {
     let content = fs::read(path).unwrap();
     let content = content.as_slice();
     let content = WINDOWS_31J.decode(content, DecoderTrap::Ignore).unwrap();

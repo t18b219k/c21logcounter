@@ -130,7 +130,6 @@ impl Statics {
     }
 }
 
-
 /// contain all statics log contents
 /// and configs
 /// logs are splatted to each line
@@ -170,7 +169,8 @@ fn main() {
     }
     let listener =
         TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), context.port)).unwrap();
-    webbrowser::open(&format!("http://localhost:{}/", context.port)).expect("cant not open browser");
+    webbrowser::open(&format!("http://localhost:{}/", context.port))
+        .expect("cant not open browser");
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
         let mut buffer = [0; 1024];
@@ -375,7 +375,8 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                             println!("Setting generated");
                                             let config_file_content =
                                                 toml::to_string(&setting).unwrap();
-                                            std::fs::write("./Settings.toml", config_file_content).unwrap();
+                                            std::fs::write("./Settings.toml", config_file_content)
+                                                .unwrap();
                                             Vec::from(include_str!("generated_config.html"))
                                         } else {
                                             Vec::from(include_str!("blank.html"))
@@ -665,7 +666,6 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                         stem, range.start, range.end
                                     );
                                     let mut file = std::fs::File::create(file_name).unwrap();
-
 
                                     file.write_all(&bytes).unwrap();
                                     file.flush().unwrap();

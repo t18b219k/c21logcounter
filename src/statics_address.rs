@@ -14,6 +14,8 @@ pub enum StaticsAddress {
     Shuttle,
     Lab,
     Gacha,
+    DungeonReward,
+    DungeonSell,
 }
 impl StaticsAddress {
     pub fn from_url(url: &str) -> Option<Self> {
@@ -47,6 +49,8 @@ impl StaticsAddress {
             StaticsAddress::Shuttle => 11,
             StaticsAddress::Lab => 12,
             StaticsAddress::Gacha => 13,
+            StaticsAddress::DungeonReward => 14,
+            StaticsAddress::DungeonSell => 15,
         }
     }
     pub fn as_dictionary_index(&self) -> Option<usize> {
@@ -77,6 +81,8 @@ impl ToString for StaticsAddress {
             StaticsAddress::Shuttle => "シャトル",
             StaticsAddress::Lab => "合成",
             StaticsAddress::Gacha => "ガチャ",
+            StaticsAddress::DungeonReward => "ダンジョン報酬",
+            StaticsAddress::DungeonSell => "ダンジョン報酬売却",
         };
         text.to_owned()
     }

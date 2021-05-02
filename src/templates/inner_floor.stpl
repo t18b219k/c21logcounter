@@ -8,7 +8,11 @@
 </head>
 <body>
 <h1><%= name %></h1>
+<% if name=="ダンジョン内カウント" { %>
+<input type="button" onclick="location.href='?reset=true'" value="リセット">
+<% } %>
 <% for statics in set_of_statics { %>
+<% if !statics.statics.is_empty() { %>
 <div class="hbox">
     <table border="1" width="200" cellspacing="0" cellpadding="5" bordercolor="#333333">
 
@@ -26,6 +30,7 @@
         <% } %>
     </table>
 </div>
+<% } %>
 <% } %>
 </body>
 </html>

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-
+use chrono::{DateTime, FixedOffset, ParseResult};
 use regex::{Captures, Regex};
+use std::collections::HashMap;
 use std::ops::Add;
 
 pub type InnerStatics = HashMap<String, isize>;
@@ -98,27 +98,24 @@ pub fn engine_item_use(texts: &[String], from: usize) -> InnerStatics {
 //this is not normal format
 //so i use dedicated format
 // (reward,sells)
-pub(crate) fn engine_reward_dungeon(
-    texts: &[String],
-    from: usize,
-) -> HashMap<String, DungeonRewardElement> {
+pub(crate) fn engine_reward_dungeon(texts: &[String], from: usize) -> (InnerStatics, InnerStatics) {
     lazy_static! {
     //	報酬－ ENパック2000 x 1
-    static ref RE2:Regex=Regex::new(r"報酬－ (?P<name>.+) x (?P<N>\d+)").unwrap();
+    static ref REREWARD:Regex=Regex::new(r"報酬－ (?P<name>.+) x (?P<N>\d+)").unwrap();
     static ref RESELL:Regex=Regex::new(r"報酬売却－ (?P<name>.+) x (?P<N>\d+)").unwrap();
     }
-    let mut table: HashMap<String, DungeonRewardElement> = HashMap::new();
+    let mut table_reward = HashMap::new();
+    let mut table_sell = HashMap::new();
     let last = texts.len();
     if from > last {
-        return table;
+        return (table_reward, table_sell);
     }
     for text in &texts[from..last] {
-        match RE2.captures(&text) {
+        match REREWARD.captures(&text) {
             Some(caps) => {
                 let name = caps.name("name").unwrap().as_str();
                 let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-                let cell = DungeonRewardElement(num, 0);
-                add_to_table(&mut table, name, cell);
+                add_to_table(&mut table_reward, name, num);
             }
             None => {
                 #[cfg(debug_assertions)]
@@ -129,8 +126,7 @@ pub(crate) fn engine_reward_dungeon(
             Some(caps) => {
                 let name = caps.name("name").unwrap().as_str();
                 let num = caps.name("N").unwrap().as_str().parse::<isize>().unwrap();
-                let cell = DungeonRewardElement(0, num);
-                add_to_table(&mut table, name, cell);
+                add_to_table(&mut table_sell, name, num);
             }
             None => {
                 #[cfg(debug_assertions)]
@@ -138,7 +134,7 @@ pub(crate) fn engine_reward_dungeon(
             }
         }
     }
-    table
+    (table_reward, table_sell)
 }
 
 pub fn engine_rare(texts: &[String], from: usize) -> InnerStatics {
@@ -261,7 +257,7 @@ pub fn engine_get_part(texts: &[String], from: usize) -> InnerStatics {
 }
 
 ///フロアゲートの起動を探す.(last)
-pub fn search_floor(texts: &[String], search_from: usize) -> Option<usize> {
+pub fn search_floor_last(texts: &[String], search_from: usize) -> Option<usize> {
     let last = texts.len();
     let mut floor = None;
     if search_from > last {
@@ -293,9 +289,50 @@ pub fn search_floor_first(texts: &[String], search_from: usize) -> Option<usize>
     }
     None
 }
+/// ジャンプの使用を探す first
+pub fn search_jump_use(texts: &[String], search_from: usize) -> Option<usize> {
+    let last = texts.len();
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"[(?P<city>.+?)ジャンプ]を使用した！").unwrap();
+    }
+    if search_from > last {
+        return None;
+    }
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if RE.captures(text).is_some() {
+            return Some(offset + search_from);
+        }
+    }
+    None
+}
+/// ゲートの使用を探す first
+pub fn search_gate_type(texts: &[String], search_from: usize) -> Option<(usize, GateType)> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"[(?P<city>.+?)ゲート]を使用した！").unwrap();
+    }
+    let last = texts.len();
+    if search_from > last {
+        return None;
+    }
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if let Some(caps) = RE.captures(text) {
+            let gate_type = if "エスケープ" == caps.name("city").unwrap().as_str() {
+                GateType::Escape
+            } else {
+                GateType::Any
+            };
+            return Some((offset + search_from, gate_type));
+        }
+    }
+    None
+}
 
-///ダンジョンクリア(last)
-pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usize> {
+pub enum GateType {
+    Any,
+    Escape,
+}
+///ダンジョンクリア(first)
+pub fn search_dungeon_clear_first(texts: &[String], search_from: usize) -> Option<usize> {
     //ダンジョン成功報酬
     let last = texts.len();
     if search_from > last {
@@ -308,7 +345,48 @@ pub fn search_dungeon_clear(texts: &[String], search_from: usize) -> Option<usiz
     }
     None
 }
+/// search reward line
+pub fn search_reward_first(texts: &[String], search_from: usize) -> Option<usize> {
+    let last = texts.len();
+    if search_from > last {
+        return None;
+    }
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if text.contains(r"報酬") {
+            return Some(search_from + offset);
+        }
+    }
+    None
+}
+/// search reward sell line
+pub fn search_reward_sell_first(texts: &[String], search_from: usize) -> Option<usize> {
+    let last = texts.len();
+    if search_from > last {
+        return None;
+    }
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if text.contains(r"報酬売却") {
+            return Some(search_from + offset);
+        }
+    }
+    None
+}
+//ダンジョンクリア(last)
 
+pub fn search_dungeon_clear_last(texts: &[String], search_from: usize) -> Option<usize> {
+    let last = texts.len();
+    // in this case
+    if search_from > last {
+        return None;
+    }
+    let mut clear = None;
+    for (offset, text) in texts[search_from..last].iter().enumerate() {
+        if text.contains(r"ダンジョン成功報酬") {
+            clear = Some(search_from + offset);
+        }
+    }
+    clear
+}
 pub fn engine_get_text(text: &str) -> Vec<String> {
     let mut texts = vec![];
     lazy_static! {
@@ -370,15 +448,17 @@ pub fn engine_get_info(texts: Vec<String>) -> Vec<String> {
     vec
 }
 
-pub fn get_time(text: &str) -> String {
+pub fn get_time(text: &str) -> ParseResult<DateTime<FixedOffset>> {
     lazy_static! {
         static ref RE: Regex =
             Regex::new(r"(?P<time>\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2})\t\[INFO]\t(?P<text>.+)")
                 .unwrap();
     }
     let captures = RE.captures(text);
-    match captures {
+    let time_text = match captures {
         None => "No time stamp".to_string(),
         Some(caps) => caps.name("time").unwrap().as_str().to_string(),
-    }
+    };
+
+    DateTime::parse_from_str(&time_text, "%Y-%m-%d%t%H:%M:%S")
 }

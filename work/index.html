@@ -7,16 +7,15 @@
 </head>
 
 <body id="body">
-<form>
-    <button name="inject_mesa" type="submit" value="">Mesa OpenGL 導入</button>
-    <button name="update_c21" type="submit">C21アップデート</button>
-    <button name="launch_cosmic" type="submit">C21 起動</button>
-    <button name=kill_cosmic type="submit">C21 強制終了</button>
-    <button name="launch_stage_editor" type="submit">ステージエディタ 起動</button>
-    <button name="kill_stage_editor" type="submit">ステージエディタ 強制終了</button>
-    <button name="generate_config" type="submit">設定を生成</button>
-    <button name="exit" type="submit">終了</button>
-</form>
+<section>
+    <a class="tab_lab" href="system?inject_mesa=true" target="counter">Mesa OpenGL 導入</a>
+    <a class="tab_lab" href="system?update_c21=true" target="counter">C21 アップデート</a>
+    <a class="tab_lab" href="system?launch_cosmic=true" target="counter">C21 起動</a>
+    <a class="tab_lab" href="system?kill_cosmic=true" target="counter">C21 強制終了</a>
+    <a class="tab_lab" href="system?launch_stage_editor=true" target="counter">ステージエディタ　起動</a>
+    <a class="tab_lab" href="system?kill_stage_editor=true" target="counter">ステージエディタ　強制終了</a>
+    <a class="tab_lab" href="system?exit=true" target="counter">終了</a>
+</section>
 <section class="tab_contents">
     <div class="tab_wrap">
         <a class="tab_lab" href="dungeon" target="counter">ダンジョン内カウント</a>

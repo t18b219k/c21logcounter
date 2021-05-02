@@ -24,7 +24,7 @@ use crate::engines::{
     search_dungeon_clear_first, search_floor_first, search_reward_first,
     search_reward_sell_first, InnerStatics,
 };
-use chrono::FixedOffset;
+use chrono::{ NaiveDateTime};
 use std::borrow::Borrow;
 use std::ops::Range;
 use std::option::Option::Some;
@@ -32,10 +32,11 @@ use std::option::Option::Some;
 pub struct DungeonStateMachine {
     state: DungeonState,
     texts: Vec<String>,
+    time_stamps:Vec<NaiveDateTime>,
     from: usize,
     current_line: usize,
-    clear_time: Option<chrono::DateTime<FixedOffset>>,
-    start_time: Option<chrono::DateTime<FixedOffset>>,
+    clear_time: Option<chrono::NaiveDateTime>,
+    start_time: Option<chrono::NaiveDateTime>,
     dungeon_range: Option<Range<usize>>,
 }
 #[derive(Debug)]
@@ -48,10 +49,11 @@ pub struct DungeonOutPut {
     reward_dollar: usize,
 }
 impl DungeonStateMachine {
-    pub fn init(texts: Vec<String>, from: usize) -> Self {
+    pub fn init(texts: Vec<String>, time_stamps:Vec<NaiveDateTime>, from: usize) -> Self {
         Self {
             state: DungeonState::OutOfDungeon,
             texts,
+            time_stamps,
             from,
             current_line: from,
             clear_time: None,
@@ -94,7 +96,7 @@ impl DungeonStateMachine {
                     self.state = DungeonState::Dungeon;
                     self.current_line = floor_gate;
                     self.start_time
-                        .replace(get_time(&self.texts.get(self.current_line).unwrap()).unwrap());
+                        .replace(self.time_stamps[self.current_line]);
                 }
             }
             DungeonState::Dungeon => {
@@ -103,12 +105,12 @@ impl DungeonStateMachine {
                     self.state = DungeonState::Clear;
                     self.current_line = clear;
                     self.clear_time
-                        .replace(get_time(&self.texts.get(self.current_line).unwrap()).unwrap());
+                        .replace(self.time_stamps[self.current_line]);
                 }
             }
             DungeonState::Clear => {
                 let reward_start = search_reward_first(&self.texts, self.current_line);
-                let current_time = get_time(&self.texts.get(self.current_line).unwrap()).unwrap();
+                let current_time = self.time_stamps[self.current_line];
                 if let Some(reward_start) = reward_start {
                     self.state = DungeonState::Reward;
                     self.current_line = reward_start;
@@ -120,7 +122,7 @@ impl DungeonStateMachine {
             DungeonState::Reward => {
                 while self.state == DungeonState::Reward && (self.current_line < self.texts.len()) {
                     let current_time =
-                        get_time(&self.texts.get(self.current_line).unwrap()).unwrap();
+                        self.time_stamps[self.current_line];
                     let activate_floor_gate = search_floor_first(&self.texts, self.current_line);
                     let sell_start = search_reward_sell_first(&self.texts, self.current_line);
                     //check time out
@@ -129,7 +131,7 @@ impl DungeonStateMachine {
                     } else if let Some(floor_gate) = activate_floor_gate {
                         self.state = DungeonState::Dungeon;
                         self.start_time
-                            .replace(get_time(&self.texts.get(floor_gate).unwrap()).unwrap());
+                            .replace(self.time_stamps[self.current_line]);
                         self.current_line = floor_gate;
                     } else if let Some(sell) = sell_start {
                         self.state = DungeonState::Sell;
@@ -157,8 +159,9 @@ impl DungeonStateMachine {
     pub fn inspect_state(&self) -> &DungeonState {
         self.state.borrow()
     }
-    pub fn supply_text(&mut self, other: &[String]) {
-        self.texts.extend_from_slice(other);
+    pub fn supply_text(&mut self, other: (&[NaiveDateTime],&[String])) {
+        self.texts.extend_from_slice(other.1);
+        self.time_stamps.extend_from_slice(other.0);
     }
     pub fn get_current_text_len(&self) -> usize {
         self.texts.len()

@@ -175,7 +175,7 @@ fn main() {
         launcher: None,
         log_cache: Default::default(),
         general_statics: vec![Statics::new(); 16],
-        dungeon_state_machine: DungeonStateMachine::init(vec![], 0),
+        dungeon_state_machine: DungeonStateMachine::init(vec![], vec![],0),
         current_updating_file: "".to_string(),
         port: 7878,
     };
@@ -589,14 +589,14 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             //if updating file changed reset state machine
                             if context.current_updating_file != last {
                                 context.dungeon_state_machine =
-                                    DungeonStateMachine::init(texts.1.clone(), texts.1.len());
+                                    DungeonStateMachine::init(texts.1.clone(),texts.0.clone(), texts.1.len());
                             }
                             //supply text
                             let current_texts =
                                 context.dungeon_state_machine.get_current_text_len();
                             context
                                 .dungeon_state_machine
-                                .supply_text(&texts.1[current_texts..texts.1.len()]);
+                                .supply_text((&texts.0[current_texts..texts.1.len()],&texts.1[current_texts..texts.1.len()]));
 
                             context.dungeon_state_machine.state_change();
                             let state = context.dungeon_state_machine.inspect_state();

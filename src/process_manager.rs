@@ -100,7 +100,7 @@ mod process_manager_test {
     fn test_launch() {
         let base_path = "/home/rustacean/.wine/drive_c/CyberStep/C21/";
         let ch = construct_launcher(base_path);
-        ch.send(ProcessRequest::LaunchMain);
+        ch.send(ProcessRequest::LaunchMain).unwrap();
         std::thread::sleep(Duration::from_secs(100));
     }
 }

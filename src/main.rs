@@ -329,7 +329,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                 let tx = tx.clone();
                                 thread::spawn(move || {
                                     let texts = read_from_file(&path);
-                                    let data = engine_reward_dungeon(&texts, 0);
+                                    let data = engine_reward_dungeon(&texts.1, 0);
                                     tx.lock().unwrap().send(data);
                                 });
                             }
@@ -348,7 +348,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                 }
                             }
                             let texts = read_from_file(last);
-                            let new_statics = engine_reward_dungeon(&texts, 0);
+                            let new_statics = engine_reward_dungeon(&texts.1, 0);
                             let (reward, sell) = {
                                 (
                                     context.general_statics
@@ -474,22 +474,22 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                 thread::spawn(move || match statics_address {
                                     StaticsAddress::Item => {
                                         let texts = read_from_file(path);
-                                        let data = engine_item_get(&texts, 0);
+                                        let data = engine_item_get(&texts.1, 0);
                                         tx.lock().unwrap().send(data);
                                     }
                                     StaticsAddress::ItemUse => {
                                         let texts = read_from_file(path);
-                                        let data = engine_item_use(&texts, 0);
+                                        let data = engine_item_use(&texts.1, 0);
                                         tx.lock().unwrap().send(data);
                                     }
                                     StaticsAddress::Parts => {
                                         let texts = read_from_file(path);
-                                        let data = engine_get_part(&texts, 0);
+                                        let data = engine_get_part(&texts.1, 0);
                                         tx.lock().unwrap().send(data);
                                     }
                                     StaticsAddress::Kill => {
                                         let texts = read_from_file(path);
-                                        let data = engine_kill_self(&texts, 0);
+                                        let data = engine_kill_self(&texts.1, 0);
                                         tx.lock().unwrap().send(data);
                                     }
                                     StaticsAddress::Burst
@@ -512,7 +512,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                     }
                                     StaticsAddress::Gacha => {
                                         let texts = read_from_file(path);
-                                        let data = engine_gacha(&texts, 0);
+                                        let data = engine_gacha(&texts.1, 0);
                                         tx.lock().unwrap().send(data);
                                     }
                                     _ => {}
@@ -534,19 +534,19 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             let updating = match statics_address {
                                 StaticsAddress::Item => {
                                     let texts = read_from_file(last);
-                                    engine_item_get(&texts, 0)
+                                    engine_item_get(&texts.1, 0)
                                 }
                                 StaticsAddress::ItemUse => {
                                     let texts = read_from_file(last);
-                                    engine_item_use(&texts, 0)
+                                    engine_item_use(&texts.1, 0)
                                 }
                                 StaticsAddress::Parts => {
                                     let texts = read_from_file(last);
-                                    engine_get_part(&texts, 0)
+                                    engine_get_part(&texts.1, 0)
                                 }
                                 StaticsAddress::Kill => {
                                     let texts = read_from_file(last);
-                                    engine_kill_self(&texts, 0)
+                                    engine_kill_self(&texts.1, 0)
                                 }
                                 StaticsAddress::Burst
                                 | StaticsAddress::Mission
@@ -566,7 +566,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                 }
                                 StaticsAddress::Gacha => {
                                     let texts = read_from_file(last);
-                                    engine_gacha(&texts, 0)
+                                    engine_gacha(&texts.1, 0)
                                 }
                                 _ => {
                                     unreachable!()
@@ -589,14 +589,14 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             //if updating file changed reset state machine
                             if context.current_updating_file != last {
                                 context.dungeon_state_machine =
-                                    DungeonStateMachine::init(texts.clone(), texts.len());
+                                    DungeonStateMachine::init(texts.1.clone(), texts.1.len());
                             }
                             //supply text
                             let current_texts =
                                 context.dungeon_state_machine.get_current_text_len();
                             context
                                 .dungeon_state_machine
-                                .supply_text(&texts[current_texts..texts.len()]);
+                                .supply_text(&texts.1[current_texts..texts.1.len()]);
 
                             context.dungeon_state_machine.state_change();
                             let state = context.dungeon_state_machine.inspect_state();
@@ -671,15 +671,15 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                         "./floor" => {
                             let (last, texts) = search_latest_log_file(chat_dir_path);
                             let texts = read_from_file(last);
-                            let from = search_floor_last(&texts, 0);
+                            let from = search_floor_last(&texts.1, 0);
                             match from {
                                 None => Vec::from(include_str!("not_entered.html")),
                                 Some(from) => {
                                     let mut lds = Vec::new();
-                                    lds.push(engine_item_get(&texts, from));
-                                    lds.push(engine_get_part(&texts, from));
-                                    lds.push(engine_item_use(&texts, from));
-                                    lds.push(engine_kill_self(&texts, from));
+                                    lds.push(engine_item_get(&texts.1, from));
+                                    lds.push(engine_get_part(&texts.1, from));
+                                    lds.push(engine_item_use(&texts.1, from));
+                                    lds.push(engine_kill_self(&texts.1, from));
 
                                     let ctx = InFloorStaticsTemplate {
                                         name: "フロア内カウント".to_string(),

@@ -175,7 +175,7 @@ fn main() {
         launcher: None,
         log_cache: Default::default(),
         general_statics: vec![Statics::new(); 16],
-        dungeon_state_machine: DungeonStateMachine::init(vec![], vec![],0),
+        dungeon_state_machine: DungeonStateMachine::init(vec![], vec![], 0),
         current_updating_file: "".to_string(),
         port: 7878,
     };
@@ -588,21 +588,25 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             let texts = read_from_file(&last);
                             //if updating file changed reset state machine
                             if context.current_updating_file != last {
-                                context.dungeon_state_machine =
-                                    DungeonStateMachine::init(texts.1.clone(),texts.0.clone(), texts.1.len());
+                                context.dungeon_state_machine = DungeonStateMachine::init(
+                                    texts.1.clone(),
+                                    texts.0.clone(),
+                                    texts.1.len(),
+                                );
                             }
                             //supply text
                             let current_texts =
                                 context.dungeon_state_machine.get_current_text_len();
-                            context
-                                .dungeon_state_machine
-                                .supply_text((&texts.0[current_texts..texts.1.len()],&texts.1[current_texts..texts.1.len()]));
+                            context.dungeon_state_machine.supply_text((
+                                &texts.0[current_texts..texts.1.len()],
+                                &texts.1[current_texts..texts.1.len()],
+                            ));
 
                             context.dungeon_state_machine.state_change();
                             let state = context.dungeon_state_machine.inspect_state();
 
                             println!("current state {:?}", state);
-                            context.current_updating_file = last;
+                            context.current_updating_file = last.clone();
                             if let Some(statics) = context.dungeon_state_machine.statics() {
                                 let ctx = InFloorStaticsTemplate {
                                     name: "ダンジョン内カウント".to_string(),
@@ -662,7 +666,32 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                     ],
                                 };
                                 let table = ctx.render_once().unwrap();
-                                table.into_bytes()
+                                let bytes = table.into_bytes();
+                                //out put log
+                                if let Some(range) =
+                                    context.dungeon_state_machine.query_dungeon_range()
+                                {
+                                    let path = Path::new(&last);
+                                    let stem = path.file_stem().unwrap();
+                                    let stem = stem.to_str().unwrap();
+
+                                    if !Path::new("./dungeon_statics").exists() {
+                                        std::fs::create_dir("./dungeon_statics");
+                                    }
+                                    let file_name = format!(
+                                        "./dungeon_statics/{}@{}_{}.html",
+                                        stem, range.start, range.end
+                                    );
+                                    let mut file = std::fs::File::create(file_name).unwrap();
+
+                                    if std::fs::read_dir("./dungeon_statics").is_err() {
+                                        std::fs::create_dir("./dungeon_statics");
+                                    }
+                                    file.write_all(&bytes).unwrap();
+                                    file.flush().unwrap();
+                                }
+
+                                bytes
                             } else {
                                 Vec::from(include_str!("not_entered.html"))
                             }

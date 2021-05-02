@@ -21,10 +21,10 @@ sell    |---------------------- |
 */
 use crate::engines::{
     engine_get_part, engine_item_get, engine_item_use, engine_kill_self, engine_reward_dungeon,
-    search_dungeon_clear_first, search_floor_first, search_reward_first,
-    search_reward_sell_first, InnerStatics,
+    search_dungeon_clear_first, search_floor_first, search_reward_first, search_reward_sell_first,
+    InnerStatics,
 };
-use chrono::{ NaiveDateTime};
+use chrono::NaiveDateTime;
 use std::borrow::Borrow;
 use std::ops::Range;
 use std::option::Option::Some;
@@ -32,12 +32,13 @@ use std::option::Option::Some;
 pub struct DungeonStateMachine {
     state: DungeonState,
     texts: Vec<String>,
-    time_stamps:Vec<NaiveDateTime>,
+    time_stamps: Vec<NaiveDateTime>,
     from: usize,
     current_line: usize,
     clear_time: Option<chrono::NaiveDateTime>,
     start_time: Option<chrono::NaiveDateTime>,
     dungeon_range: Option<Range<usize>>,
+    emit: bool,
 }
 #[derive(Debug)]
 pub struct DungeonOutPut {
@@ -49,7 +50,7 @@ pub struct DungeonOutPut {
     reward_dollar: usize,
 }
 impl DungeonStateMachine {
-    pub fn init(texts: Vec<String>, time_stamps:Vec<NaiveDateTime>, from: usize) -> Self {
+    pub fn init(texts: Vec<String>, time_stamps: Vec<NaiveDateTime>, from: usize) -> Self {
         Self {
             state: DungeonState::OutOfDungeon,
             texts,
@@ -59,14 +60,12 @@ impl DungeonStateMachine {
             clear_time: None,
             start_time: None,
             dungeon_range: None,
+            emit: false,
         }
     }
     pub fn statics(&mut self) -> Option<DungeonOutPut> {
         let range = if let Some(dungeon_range) = self.dungeon_range.clone() {
-            self.dungeon_range = None;
             dungeon_range
-        } else if let None = self.dungeon_range.clone() {
-            return None;
         } else {
             self.from..self.current_line
         };
@@ -95,8 +94,7 @@ impl DungeonStateMachine {
                     self.from = floor_gate;
                     self.state = DungeonState::Dungeon;
                     self.current_line = floor_gate;
-                    self.start_time
-                        .replace(self.time_stamps[self.current_line]);
+                    self.start_time.replace(self.time_stamps[self.current_line]);
                 }
             }
             DungeonState::Dungeon => {
@@ -104,8 +102,9 @@ impl DungeonStateMachine {
                 if let Some(clear) = clear {
                     self.state = DungeonState::Clear;
                     self.current_line = clear;
-                    self.clear_time
-                        .replace(self.time_stamps[self.current_line]);
+                    self.clear_time.replace(self.time_stamps[self.current_line]);
+                } else {
+                    self.current_line = self.texts.len();
                 }
             }
             DungeonState::Clear => {
@@ -117,22 +116,25 @@ impl DungeonStateMachine {
                 } else if (current_time - self.clear_time.unwrap()) > chrono::Duration::seconds(120)
                 {
                     self.state = DungeonState::OutOfDungeon;
+                    self.emit = true;
                 }
             }
             DungeonState::Reward => {
                 while self.state == DungeonState::Reward && (self.current_line < self.texts.len()) {
-                    let current_time =
-                        self.time_stamps[self.current_line];
+                    let current_time = self.time_stamps[self.current_line];
                     let activate_floor_gate = search_floor_first(&self.texts, self.current_line);
                     let sell_start = search_reward_sell_first(&self.texts, self.current_line);
                     //check time out
                     if (current_time - self.clear_time.unwrap()) > chrono::Duration::seconds(120) {
                         self.state = DungeonState::OutOfDungeon;
+                        self.emit = true;
                     } else if let Some(floor_gate) = activate_floor_gate {
                         self.state = DungeonState::Dungeon;
-                        self.start_time
-                            .replace(self.time_stamps[self.current_line]);
+                        self.start_time.replace(self.time_stamps[self.current_line]);
                         self.current_line = floor_gate;
+                        self.dungeon_range.replace(self.from..self.current_line);
+                        self.from = self.current_line;
+                        self.emit = true;
                     } else if let Some(sell) = sell_start {
                         self.state = DungeonState::Sell;
                         self.current_line = sell;
@@ -149,6 +151,7 @@ impl DungeonStateMachine {
                         //save
                         self.dungeon_range.replace(self.from..self.current_line);
                         self.from = self.current_line;
+                        self.emit = true;
                     } else {
                         self.current_line += 1;
                     }
@@ -159,12 +162,15 @@ impl DungeonStateMachine {
     pub fn inspect_state(&self) -> &DungeonState {
         self.state.borrow()
     }
-    pub fn supply_text(&mut self, other: (&[NaiveDateTime],&[String])) {
+    pub fn supply_text(&mut self, other: (&[NaiveDateTime], &[String])) {
         self.texts.extend_from_slice(other.1);
         self.time_stamps.extend_from_slice(other.0);
     }
     pub fn get_current_text_len(&self) -> usize {
         self.texts.len()
+    }
+    pub fn query_dungeon_range(&mut self) -> Option<Range<usize>> {
+        self.dungeon_range.take()
     }
 }
 ///ダンジョンの状態
@@ -175,9 +181,4 @@ pub enum DungeonState {
     Clear,
     Reward,
     Sell,
-}
-impl DungeonState {
-    pub fn init() -> Self {
-        Self::OutOfDungeon
-    }
 }

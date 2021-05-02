@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, FixedOffset};
+use chrono::NaiveDateTime;
 use regex::{Captures, Regex};
 use std::collections::HashMap;
 use std::ops::Add;
@@ -387,19 +387,20 @@ pub fn search_dungeon_clear_last(texts: &[String], search_from: usize) -> Option
     }
     clear
 }
-pub fn engine_get_text(text: &str) ->(Vec<NaiveDateTime>, Vec<String>) {
+pub fn engine_get_text(text: &str) -> (Vec<NaiveDateTime>, Vec<String>) {
     let mut texts = vec![];
-    let mut times= vec![];
+    let mut times = vec![];
     lazy_static! {
         static ref RE: Regex =
-            Regex::new(r"(?P<time>\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2})\t\[INFO]	(?P<text>.+)").unwrap();
+            Regex::new(r"(?P<time>\d{4}-\d{2}-\d{2}	\d{2}:\d{2}:\d{2})\t\[INFO]	(?P<text>.+)")
+                .unwrap();
     }
     for caps in RE.captures_iter(text) {
-        let time_text=caps.name("time").unwrap().as_str();
+        let time_text = caps.name("time").unwrap().as_str();
         texts.push("\t".to_string() + caps.name("text").unwrap().as_str());
-        times.push(    NaiveDateTime::parse_from_str(time_text, "%Y-%m-%d	%H:%M:%S").unwrap());
+        times.push(NaiveDateTime::parse_from_str(time_text, "%Y-%m-%d	%H:%M:%S").unwrap());
     }
-    (times,texts)
+    (times, texts)
 }
 
 pub fn engine_get_text3(text: &str) -> Vec<String> {

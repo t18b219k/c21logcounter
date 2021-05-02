@@ -1,21 +1,17 @@
 #[derive(Clone, Copy)]
 pub enum StaticsAddress {
     Item,
-    ItemDungeon,
     ItemUse,
-    ItemUseDungeon,
     Parts,
-    PartDungeon,
     Kill,
-    KillDungeon,
     Burst,
     Mission,
-    DungeonClear,
     Shuttle,
     Lab,
     Gacha,
     DungeonReward,
     DungeonSell,
+    DungeonClear,
 }
 impl StaticsAddress {
     pub fn from_url(url: &str) -> Option<Self> {
@@ -36,21 +32,17 @@ impl StaticsAddress {
     pub fn as_uint(&self) -> usize {
         match self {
             StaticsAddress::Item => 0,
-            StaticsAddress::ItemDungeon => 1,
-            StaticsAddress::ItemUse => 2,
-            StaticsAddress::ItemUseDungeon => 3,
-            StaticsAddress::Parts => 4,
-            StaticsAddress::PartDungeon => 5,
-            StaticsAddress::Kill => 6,
-            StaticsAddress::KillDungeon => 7,
-            StaticsAddress::Burst => 8,
-            StaticsAddress::Mission => 9,
-            StaticsAddress::DungeonClear => 10,
-            StaticsAddress::Shuttle => 11,
-            StaticsAddress::Lab => 12,
-            StaticsAddress::Gacha => 13,
-            StaticsAddress::DungeonReward => 14,
-            StaticsAddress::DungeonSell => 15,
+            StaticsAddress::ItemUse => 1,
+            StaticsAddress::Parts => 2,
+            StaticsAddress::Kill => 3,
+            StaticsAddress::Burst => 4,
+            StaticsAddress::Mission => 5,
+            StaticsAddress::DungeonClear => 6,
+            StaticsAddress::Shuttle => 7,
+            StaticsAddress::Lab => 8,
+            StaticsAddress::Gacha => 9,
+            StaticsAddress::DungeonReward => 10,
+            StaticsAddress::DungeonSell => 11,
         }
     }
     pub fn as_dictionary_index(&self) -> Option<usize> {
@@ -68,13 +60,9 @@ impl ToString for StaticsAddress {
     fn to_string(&self) -> String {
         let text = match self {
             StaticsAddress::Item => "アイテム取得",
-            StaticsAddress::ItemDungeon => "アイテム取得",
             StaticsAddress::ItemUse => "アイテム使用",
-            StaticsAddress::ItemUseDungeon => "アイテム使用",
             StaticsAddress::Parts => "パーツ",
-            StaticsAddress::PartDungeon => "パーツ",
             StaticsAddress::Kill => "キル",
-            StaticsAddress::KillDungeon => "キル",
             StaticsAddress::Burst => "突発",
             StaticsAddress::Mission => "ミッション",
             StaticsAddress::DungeonClear => "ダンジョンクリア",

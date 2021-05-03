@@ -119,6 +119,7 @@ impl DungeonStateMachine {
                     let current_time = self.time_stamps[self.current_line];
                     let world_current_time = chrono::Local::now().naive_local();
                     if (world_current_time - current_time) < chrono::Duration::seconds(6) {
+                        #[cfg(debug_assertions)]
                         println!("set sync");
                         self.sync = true;
                     }
@@ -131,6 +132,7 @@ impl DungeonStateMachine {
                     self.current_line = clear;
                     let current_time = self.time_stamps[self.current_line];
                     self.clear_time.replace(current_time);
+                    #[cfg(debug_assertions)]
                     println!("clear time {:?}", self.clear_time)
                 } else {
                     self.current_line = self.texts.len();
@@ -172,6 +174,7 @@ impl DungeonStateMachine {
 
                     let activate_floor_gate = search_floor_first(&self.texts, self.current_line);
                     let sell_start = search_reward_sell_first(&self.texts, self.current_line);
+                    #[cfg(debug_assertions)]
                     println!("elapsed time {}", current_time - self.clear_time.unwrap());
                     if let Some(floor_gate) = activate_floor_gate {
                         self.state = DungeonState::Dungeon;

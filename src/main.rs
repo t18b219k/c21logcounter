@@ -52,6 +52,13 @@ struct InFloorStaticsTemplate {
     name: String,
     set_of_statics: Vec<GeneralStaticsTemplate>,
 }
+#[derive(TemplateOnce)]
+#[template(path = "dungeon.stpl")]
+struct DungeonStaticsTemplate {
+    lap_time: Option<chrono::Duration>,
+    dungeon_name: String,
+    set_of_statics: Vec<GeneralStaticsTemplate>,
+}
 mod dungeon_state_machine;
 mod engines;
 mod mesa_inject;
@@ -146,6 +153,7 @@ struct Context {
 
 use crate::dungeon_state_machine::DungeonStateMachine;
 use crate::statics_address::StaticsAddress;
+use chrono::Duration;
 use std::sync::Mutex;
 
 fn main() {
@@ -591,6 +599,65 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                             println!("current state {:?}", state);
                             context.current_updating_file = last.clone();
                             if let Some(statics) = context.dungeon_state_machine.statics() {
+                                let ctx = DungeonStaticsTemplate {
+                                    lap_time: statics.lap_time,
+                                    dungeon_name: "ダンジョン内カウント".to_string(),
+                                    set_of_statics: vec![
+                                        GeneralStaticsTemplate {
+                                            name: "アイテム取得".to_string(),
+                                            statics: {
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics.statics[0]);
+                                                sort(&mut vector, SortTarget::NAME, true);
+                                                vector
+                                            },
+                                        },
+                                        GeneralStaticsTemplate {
+                                            name: "パーツ取得".to_string(),
+                                            statics: {
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics.statics[2]);
+                                                sort(&mut vector, SortTarget::NAME, true);
+                                                vector
+                                            },
+                                        },
+                                        GeneralStaticsTemplate {
+                                            name: "アイテム使用".to_string(),
+                                            statics: {
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics.statics[1]);
+                                                sort(&mut vector, SortTarget::NAME, true);
+                                                vector
+                                            },
+                                        },
+                                        GeneralStaticsTemplate {
+                                            name: "キル".to_string(),
+                                            statics: {
+                                                let mut vector =
+                                                    hashmap_to_vec(&statics.statics[3]);
+                                                sort(&mut vector, SortTarget::NAME, true);
+                                                vector
+                                            },
+                                        },
+                                        GeneralStaticsTemplate {
+                                            name: "報酬".to_string(),
+                                            statics: {
+                                                let mut vector = hashmap_to_vec(&statics.rewards);
+                                                sort(&mut vector, SortTarget::NAME, true);
+                                                vector
+                                            },
+                                        },
+                                        GeneralStaticsTemplate {
+                                            name: "報酬売却".to_string(),
+                                            statics: {
+                                                let mut vector = hashmap_to_vec(&statics.sells);
+                                                sort(&mut vector, SortTarget::NAME, true);
+                                                vector
+                                            },
+                                        },
+                                    ],
+                                };
+                                /*
                                 let ctx = InFloorStaticsTemplate {
                                     name: "ダンジョン内カウント".to_string(),
                                     set_of_statics: vec![
@@ -647,7 +714,7 @@ fn make_response(request: HttpRequest, context: &mut Context) -> Vec<u8> {
                                             },
                                         },
                                     ],
-                                };
+                                };*/
                                 let table = ctx.render_once().unwrap();
                                 let bytes = table.into_bytes();
                                 //out put log

@@ -3,11 +3,14 @@
 <head>
     <meta charset=\"UTF-8\">
     <link href="./style.css" rel="stylesheet" type="text/css">
-    <title> <%= name %></title>
+    <title> <%= dungeon_name %></title>
     <script src="./reload.js"></script>
 </head>
 <body>
-<h1><%= name %></h1>
+<h1><%= dungeon_name %></h1>
+<% if let Some(lap_time)=lap_time{ %>
+<h2>Lap time <%= lap_time.to_string() %></h2>
+<% }%>
 <% for statics in set_of_statics { %>
 <% if !statics.statics.is_empty() { %>
 <div class="hbox">
@@ -19,7 +22,7 @@
             <th>名前</th>
             <th>個数</th>
         </tr>
-    <% for element in statics.statics { %>
+        <% for element in statics.statics { %>
         <tr>
             <td><%=element.0 %></td>
             <td><%=element.1 %></td>
